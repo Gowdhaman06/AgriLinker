@@ -1,0 +1,122 @@
+/* Shared Dashboard Styles */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+@media(min-width: 992px) {
+  .dashboard-grid {
+    grid-template-columns: 2fr 1fr;
+  }
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stat-tile {
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.stat-tile i {
+  font-size: 2.5rem;
+  color: var(--lime);
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.stat-val {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.stat-lbl {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+/* Orders Logs & Lists */
+.orders-section h3 {
+  margin-bottom: 1.5rem;
+  font-size: 1.35rem;
+}
+
+.order-log-card {
+  margin-bottom: 1rem;
+  transition: var(--transition);
+}
+
+.order-log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.order-items-list {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--card-border);
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.order-log-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+/* Status colors */
+.status-pill {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 20px;
+}
+
+.status-pending {
+  background: rgba(232, 160, 32, 0.15);
+  color: var(--accent);
+  border: 1px solid rgba(232, 160, 32, 0.3);
+}
+
+.status-accepted {
+  background: rgba(45, 148, 90, 0.15);
+  color: var(--lime);
+  border: 1px solid rgba(45, 148, 90, 0.3);
+}
+
+.status-delivered {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--success);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+/* Ratings widget design */
+.star-rating {
+  display: flex;
+  gap: 0.25rem;
+  margin: 1rem 0;
+  justify-content: center;
+}
+
+.star-rating i {
+  font-size: 1.75rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.star-rating i.active {
+  color: var(--accent);
+}

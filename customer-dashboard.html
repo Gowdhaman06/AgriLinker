@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Dashboard — AgriLinker</title>
+  
+  <!-- Remix Icons CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+  <!-- Leaflet CSS CDN -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <!-- Custom Stylesheets -->
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="nav-container">
+      <a href="index.html" class="brand-link">
+        <i class="ri-leaf-line"></i>
+        <span data-translate="brand">AgriLinker</span>
+      </a>
+      <nav id="main-nav">
+        <!-- Managed dynamically -->
+      </nav>
+      <div class="lang-selector-container">
+        <select class="lang-select" id="lang-select" aria-label="Select Language">
+          <option value="en">English</option>
+          <option value="hi">हिन्दी (Hindi)</option>
+          <option value="ta">தமிழ் (Tamil)</option>
+          <option value="te">తెలుగు (Telugu)</option>
+          <option value="kn">ಕನ್ನಡ (Kannada)</option>
+          <option value="ml">മലയാളം (Malayalam)</option>
+          <option value="mr">मराठी (Marathi)</option>
+          <option value="gu">ગુજરાતી (Gujarati)</option>
+          <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
+          <option value="bn">বাংলা (Bengali)</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+      <div>
+        <h2 id="welcome-text">Welcome, Customer!</h2>
+        <p style="color:var(--text-secondary);">Manage and track your organic farm orders here.</p>
+      </div>
+      <a href="marketplace.html" class="btn btn-accent"><i class="ri-shopping-bag-line"></i> Shop Organic Produce</a>
+    </div>
+
+    <!-- Stats summary count -->
+    <section class="stats-grid" style="margin-top:2rem;">
+      <div class="glass-card stat-tile">
+        <i class="ri-shopping-basket-line"></i>
+        <div class="stat-val" id="total-orders-count">0</div>
+        <div class="stat-lbl">Total Orders Placed</div>
+      </div>
+      <div class="glass-card stat-tile">
+        <i class="ri-truck-line"></i>
+        <div class="stat-val" id="active-deliveries-count">0</div>
+        <div class="stat-lbl" data-translate="activeOrders">Active Orders</div>
+      </div>
+      <div class="glass-card stat-tile">
+        <i class="ri-wallet-3-line"></i>
+        <div class="stat-val" id="total-spend">₹0.00</div>
+        <div class="stat-lbl">Total Spend</div>
+      </div>
+    </section>
+
+    <!-- Dash grid with order lists + Leaflet tracking maps -->
+    <div class="dashboard-grid">
+      
+      <!-- Order Logs list -->
+      <section class="orders-section">
+        <h3 data-translate="myProduce">My Orders History</h3>
+        <div id="orders-list-wrapper">
+          <!-- Populated dynamically -->
+        </div>
+      </section>
+
+      <!-- Sidebar Tracking map & ratings trigger -->
+      <div>
+        <div class="glass-card" style="position:sticky; top:90px;">
+          <h4 style="margin-bottom:1rem;" data-translate="orderTrack">Order Tracking Map</h4>
+          <div id="tracking-map-container" class="map-container" style="height:300px; margin-bottom:1.5rem; display:none;"></div>
+          <div id="tracking-map-placeholder" style="border:1px dashed var(--card-border); border-radius:12px; height:300px; display:flex; align-items:center; justify-content:center; text-align:center; color:var(--text-muted); margin-bottom:1.5rem; padding:1.5rem;">
+            Click "Track Order" on any active delivery order to visualize route.
+          </div>
+          
+          <!-- Route status indicator -->
+          <div id="route-indicator-card" class="glass-card" style="display:none; background:rgba(255, 255, 255, 0.02); margin-top:1rem; padding:1rem; border-color:var(--card-border);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span id="route-ord-id" style="font-weight:700;">Order ID</span>
+              <span id="route-ord-status" class="status-pill status-pending">Pending</span>
+            </div>
+            <p id="route-ord-address" style="font-size:0.8rem; color:var(--text-secondary); margin-top:0.5rem;"></p>
+            <button class="btn btn-primary" id="start-simulation-btn" style="width:100%; margin-top:1rem; font-size:0.85rem;"><i class="ri-play-circle-line"></i> Simulate Transit Route</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Review submission overlay modal -->
+  <div class="modal-overlay" id="review-modal">
+    <div class="modal-content" style="max-width:450px;">
+      <h3 style="text-align:center; margin-bottom:0.5rem;" data-translate="rating">Rate & Review Produce</h3>
+      <p style="text-align:center; font-size:0.9rem; color:var(--text-secondary); margin-bottom:1rem;">Your feedback helps farmers improve and other customers buy better.</p>
+      
+      <div id="review-product-info" style="text-align:center; font-weight:700; margin-bottom:1rem;">
+        Organic Tomatoes
+      </div>
+
+      <!-- Stars rating widget -->
+      <div class="star-rating" id="review-stars-group">
+        <i class="ri-star-line" data-star="1"></i>
+        <i class="ri-star-line" data-star="2"></i>
+        <i class="ri-star-line" data-star="3"></i>
+        <i class="ri-star-line" data-star="4"></i>
+        <i class="ri-star-line" data-star="5"></i>
+      </div>
+
+      <div class="form-group">
+        <label for="review-comments" data-translate="reviews">Comments / Feedback</label>
+        <textarea id="review-comments" class="form-control" rows="3" placeholder="Explain your experience with the crop quality..."></textarea>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:1.5rem;">
+        <button class="btn btn-secondary" id="review-cancel" data-translate="cancel">Cancel</button>
+        <button class="btn btn-primary" id="review-submit" data-translate="confirm" disabled>Submit Review</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS CDN -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- App JS Scripts -->
+  <script src="js/translations.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/map.js"></script>
+  
+  <script>
+    // Embedded inline dashboard controller script to coordinate map and reviews
+    document.addEventListener("DOMContentLoaded", () => {
+      App.checkAuthAndRedirect(["customer"]);
+      
+      const currentUser = App.getCurrentUser();
+      const allOrders = JSON.parse(localStorage.getItem("agrilinker_orders") || "[]");
+      const usersList = JSON.parse(localStorage.getItem("agrilinker_users") || "[]");
+      const productsList = JSON.parse(localStorage.getItem("agrilinker_products") || "[]");
+      
+      // Filter customer orders
+      const myOrders = allOrders.filter(o => o.customerId === currentUser.id).sort((a,b) => new Date(b.date) - new Date(a.date));
+      
+      // Welcome updates
+      document.getElementById("welcome-text").textContent = `Welcome, ${currentUser.name}!`;
+
+      // Render stats tiles
+      document.getElementById("total-orders-count").textContent = myOrders.length;
+      document.getElementById("active-deliveries-count").textContent = myOrders.filter(o => ["pending", "accepted", "picked_up"].includes(o.status)).length;
+      
+      const totalSpendVal = myOrders.reduce((sum, o) => sum + o.total, 0);
+      document.getElementById("total-spend").textContent = `₹${totalSpendVal.toFixed(2)}`;
+
+      const listWrapper = document.getElementById("orders-list-wrapper");
+      
+      // Map Tracking State
+      let activeTrackingMap = null;
+      let selectedOrder = null;
+
+      // Review Modal state
+      const reviewModal = document.getElementById("review-modal");
+      const reviewProductInfo = document.getElementById("review-product-info");
+      const reviewComments = document.getElementById("review-comments");
+      const reviewSubmitBtn = document.getElementById("review-submit");
+      const starIcons = document.querySelectorAll("#review-stars-group i");
+      let selectedRating = 0;
+      let reviewProdId = "";
+
+      function renderOrders() {
+        listWrapper.innerHTML = "";
+        
+        if (myOrders.length === 0) {
+          listWrapper.innerHTML = `<div class="glass-card" style="text-align:center; padding:3rem; color:var(--text-muted);">You have not placed any orders yet.</div>`;
+          return;
+        }
+
+        myOrders.forEach(o => {
+          const farmerObj = usersList.find(u => u.id === o.farmerId) || { name: "Local Farmer" };
+          const card = document.createElement("div");
+          card.className = "glass-card order-log-card";
+          
+          let statusClass = "status-pending";
+          if (o.status === "accepted" || o.status === "picked_up") statusClass = "status-accepted";
+          if (o.status === "delivered") statusClass = "status-delivered";
+
+          const itemsText = o.items.map(i => `${i.name} (x${i.quantity})`).join(", ");
+          
+          // Action buttons
+          let actionBtnsHtml = "";
+          
+          // Only show map tracking if delivery requested and order is not fully done, or if you want to see historical paths
+          if (o.deliveryCoords) {
+            actionBtnsHtml += `<button class="btn btn-secondary track-btn" data-id="${o.id}"><i class="ri-map-pin-2-line"></i> Track Order</button>`;
+          } else {
+            actionBtnsHtml += `<span style="font-size:0.85rem; color:var(--text-muted);"><i class="ri-store-line"></i> Self-Pickup</span>`;
+          }
+
+          if (o.status === "delivered") {
+            // Can rate items
+            actionBtnsHtml += `<button class="btn btn-accent rate-btn" data-id="${o.id}"><i class="ri-star-line"></i> Review Products</button>`;
+          }
+
+          actionBtnsHtml += `<a href="messages.html?chat_with=${o.farmerId}" class="btn btn-secondary" style="padding:0.4rem 0.8rem; font-size:0.85rem;"><i class="ri-chat-3-line"></i> Chat Farmer</a>`;
+
+          card.innerHTML = `
+            <div class="order-log-header">
+              <div>
+                <span style="font-weight:700; color:var(--lime);">Order ID: #${o.id.substring(o.id.indexOf('_')+1 || 0)}</span>
+                <div style="font-size:0.8rem; color:var(--text-muted);">${new Date(o.date).toLocaleDateString()}</div>
+              </div>
+              <span class="status-pill ${statusClass}">${o.status.toUpperCase()}</span>
+            </div>
+            
+            <div style="font-size:0.95rem; margin-bottom:0.5rem;">
+              <strong>Farmer:</strong> ${farmerObj.name}
+            </div>
+
+            <div class="order-items-list">
+              <strong>Items:</strong> ${itemsText}
+            </div>
+
+            <div class="order-log-footer">
+              <div>
+                <span style="font-size:0.85rem; color:var(--text-secondary);">Subtotal: ₹${o.subtotal.toFixed(2)} | Delivery: ₹${o.deliveryCharge.toFixed(2)}</span>
+                <div style="font-weight:700; color:var(--accent); font-size:1.1rem; margin-top:0.25rem;">Total: ₹${o.total.toFixed(2)}</div>
+              </div>
+              <div style="display:flex; gap:0.5rem; align-items:center;">
+                ${actionBtnsHtml}
+              </div>
+            </div>
+          `;
+
+          listWrapper.appendChild(card);
+        });
+
+        // Add track buttons callbacks
+        document.querySelectorAll(".track-btn").forEach(btn => {
+          btn.addEventListener("click", () => {
+            const ordId = btn.getAttribute("data-id");
+            trackOrder(ordId);
+          });
+        });
+
+        // Add rate buttons callbacks
+        document.querySelectorAll(".rate-btn").forEach(btn => {
+          btn.addEventListener("click", () => {
+            const ordId = btn.getAttribute("data-id");
+            openReviewDialog(ordId);
+          });
+        });
+      }
+
+      // Live Tracking Map Function
+      function trackOrder(orderId) {
+        const order = myOrders.find(o => o.id === orderId);
+        if (!order) return;
+
+        selectedOrder = order;
+
+        document.getElementById("tracking-map-placeholder").style.display = "none";
+        const mapContainer = document.getElementById("tracking-map-container");
+        mapContainer.style.display = "block";
+        
+        // Show status indicators
+        const indicator = document.getElementById("route-indicator-card");
+        indicator.style.display = "block";
+        document.getElementById("route-ord-id").textContent = `Order: #${order.id.split('_')[1] || order.id}`;
+        
+        const statusSpan = document.getElementById("route-ord-status");
+        statusSpan.textContent = order.status.toUpperCase();
+        statusSpan.className = `status-pill status-${order.status}`;
+        document.getElementById("route-ord-address").textContent = `Destination: ${order.deliveryAddress}`;
+
+        // Initialize map
+        if (activeTrackingMap) {
+          activeTrackingMap.remove();
+        }
+
+        // Center map midway between farmer and customer coordinates
+        const midLat = (order.farmerCoords[0] + order.deliveryCoords[0]) / 2;
+        const midLng = (order.farmerCoords[1] + order.deliveryCoords[1]) / 2;
+        
+        activeTrackingMap = AgriMap.init("tracking-map-container", [midLat, midLng], 11);
+        
+        // Add markers
+        AgriMap.addMarker(activeTrackingMap, order.farmerCoords, "Farmer Pickup Point", "farmer");
+        AgriMap.addMarker(activeTrackingMap, order.deliveryCoords, "Your Delivery Point", "customer");
+
+        // Draw static path line
+        L.polyline([order.farmerCoords, order.deliveryCoords], {
+          color: '#e8a020',
+          weight: 3,
+          opacity: 0.5
+        }).addTo(activeTrackingMap);
+
+        activeTrackingMap.invalidateSize();
+      }
+
+      // Simulate driver moving along route
+      document.getElementById("start-simulation-btn").addEventListener("click", () => {
+        if (!selectedOrder || !activeTrackingMap) return;
+
+        App.showToast("Starting delivery transit simulation...");
+        AgriMap.simulateRoute(
+          activeTrackingMap,
+          selectedOrder.farmerCoords,
+          selectedOrder.deliveryCoords,
+          () => {
+            App.showToast("Delivery courier arrived at destination!");
+            // Update order status to Delivered in mock database
+            const ordersDb = JSON.parse(localStorage.getItem("agrilinker_orders") || "[]");
+            const index = ordersDb.findIndex(o => o.id === selectedOrder.id);
+            if (index !== -1) {
+              ordersDb[index].status = "delivered";
+              localStorage.setItem("agrilinker_orders", JSON.stringify(ordersDb));
+              
+              // Refresh page data
+              setTimeout(() => {
+                location.reload();
+              }, 1500);
+            }
+          }
+        );
+      });
+
+      // Review dialog logic
+      function openReviewDialog(orderId) {
+        const order = myOrders.find(o => o.id === orderId);
+        if (!order) return;
+
+        // Choose first item in the order to review
+        const firstItem = order.items[0];
+        reviewProdId = firstItem.productId;
+        
+        reviewProductInfo.textContent = firstItem.name;
+        reviewComments.value = "";
+        selectedRating = 0;
+        
+        // Reset stars
+        starIcons.forEach(s => {
+          s.className = "ri-star-line";
+          s.classList.remove("active");
+        });
+        
+        reviewSubmitBtn.disabled = true;
+        reviewModal.classList.add("active");
+      }
+
+      starIcons.forEach(star => {
+        star.addEventListener("click", () => {
+          selectedRating = parseInt(star.getAttribute("data-star"));
+          
+          starIcons.forEach(s => {
+            const currentVal = parseInt(s.getAttribute("data-star"));
+            if (currentVal <= selectedRating) {
+              s.className = "ri-star-fill active";
+            } else {
+              s.className = "ri-star-line";
+            }
+          });
+          
+          validateReviewSubmit();
+        });
+      });
+
+      reviewComments.addEventListener("input", validateReviewSubmit);
+
+      function validateReviewSubmit() {
+        reviewSubmitBtn.disabled = !(selectedRating > 0 && reviewComments.value.trim() !== "");
+      }
+
+      // Submit Review
+      reviewSubmitBtn.addEventListener("click", () => {
+        const reviewsDb = JSON.parse(localStorage.getItem("agrilinker_reviews") || "[]");
+        
+        const newReview = {
+          id: "rev_" + Date.now(),
+          productId: reviewProdId,
+          customerId: currentUser.id,
+          customerName: currentUser.name,
+          rating: selectedRating,
+          comment: reviewComments.value,
+          date: new Date().toISOString().split('T')[0]
+        };
+
+        reviewsDb.push(newReview);
+        localStorage.setItem("agrilinker_reviews", JSON.stringify(reviewsDb));
+
+        // Update overall farmer or product rating aggregates (handled as read-only simulation for now)
+        App.showToast("Review submitted successfully. Thank you!");
+        reviewModal.classList.remove("active");
+      });
+
+      // Cancel Review
+      document.getElementById("review-cancel").addEventListener("click", () => {
+        reviewModal.classList.remove("active");
+      });
+
+      // Initial render
+      renderOrders();
+    });
+  </script>
+</body>
+</html>

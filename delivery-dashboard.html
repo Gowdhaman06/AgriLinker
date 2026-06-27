@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delivery Dashboard — AgriLinker</title>
+  
+  <!-- Remix Icons CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+  <!-- Leaflet CSS CDN -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <!-- Custom Stylesheets -->
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="nav-container">
+      <a href="index.html" class="brand-link">
+        <i class="ri-leaf-line"></i>
+        <span data-translate="brand">AgriLinker</span>
+      </a>
+      <nav id="main-nav">
+        <!-- Managed dynamically -->
+      </nav>
+      <div class="lang-selector-container">
+        <select class="lang-select" id="lang-select" aria-label="Select Language">
+          <option value="en">English</option>
+          <option value="hi">हिन्दी (Hindi)</option>
+          <option value="ta">தமிழ் (Tamil)</option>
+          <option value="te">తెలుగు (Telugu)</option>
+          <option value="kn">ಕನ್ನಡ (Kannada)</option>
+          <option value="ml">മലയാളം (Malayalam)</option>
+          <option value="mr">मराठी (Marathi)</option>
+          <option value="gu">ગુજરાતી (Gujarati)</option>
+          <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
+          <option value="bn">বাংলা (Bengali)</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div>
+      <h2 id="welcome-text">Welcome, Delivery Partner!</h2>
+      <p style="color:var(--text-secondary);">Earn competitive payouts delivering fresh local farm crops.</p>
+    </div>
+
+    <!-- Payout Analytics -->
+    <section class="stats-grid" style="margin-top:2rem;">
+      <div class="glass-card stat-tile">
+        <i class="ri-money-rupee-circle-line"></i>
+        <div class="stat-val" id="delivery-earnings">₹0.00</div>
+        <div class="stat-lbl" data-translate="earnings">Earnings</div>
+      </div>
+      <div class="glass-card stat-tile">
+        <i class="ri-navigation-line"></i>
+        <div class="stat-val" id="my-active-deliveries">0</div>
+        <div class="stat-lbl" data-translate="myDeliveries">My Active Deliveries</div>
+      </div>
+      <div class="glass-card stat-tile">
+        <i class="ri-checkbox-circle-fill"></i>
+        <div class="stat-val" id="my-completed-deliveries">0</div>
+        <div class="stat-lbl">Completed Deliveries</div>
+      </div>
+    </section>
+
+    <!-- Map & Job listings grid -->
+    <div class="dashboard-grid">
+      
+      <!-- List details -->
+      <div>
+        <!-- Available jobs list -->
+        <section class="orders-section" style="margin-bottom:2.5rem;">
+          <h3 data-translate="availableJobs">Available Delivery Jobs</h3>
+          <div id="available-jobs-wrapper">
+            <!-- Rendered dynamically -->
+          </div>
+        </section>
+
+        <!-- Current assigned delivery details -->
+        <section class="orders-section">
+          <h3 data-translate="myDeliveries">My Active Deliveries</h3>
+          <div id="active-deliveries-wrapper">
+            <!-- Rendered dynamically -->
+          </div>
+        </section>
+      </div>
+
+      <!-- Navigation Visualizer Map -->
+      <div>
+        <div class="glass-card" style="position:sticky; top:90px;">
+          <h4 style="margin-bottom:1rem;" data-translate="navigating">Delivery Navigation Route</h4>
+          <div id="delivery-map-container" class="map-container" style="height:320px; display:none; margin-bottom:1rem;"></div>
+          <div id="delivery-map-placeholder" style="border:1px dashed var(--card-border); border-radius:12px; height:320px; display:flex; align-items:center; justify-content:center; text-align:center; color:var(--text-muted); padding:2rem;">
+            Select "View Navigation" on any active delivery job to display coordinates mapping.
+          </div>
+          <div id="route-details-panel" class="glass-card" style="display:none; background:rgba(255,255,255,0.02); border-color:var(--card-border); padding:1rem;">
+            <div style="font-weight:700; color:var(--lime);" id="route-job-title">Job Details</div>
+            <div style="font-size:0.85rem; color:var(--text-secondary); margin-top:0.5rem;" id="route-job-dist">Distance: 0 km</div>
+            <div style="font-size:0.85rem; color:var(--text-secondary);" id="route-job-pay">Earnings: ₹0</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Leaflet JS CDN -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- App JS scripts -->
+  <script src="js/translations.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/map.js"></script>
+
+  <script>
+    // Embedded inline dashboard controller script to coordinate delivery features
+    document.addEventListener("DOMContentLoaded", () => {
+      App.checkAuthAndRedirect(["delivery"]);
+      
+      const currentUser = App.getCurrentUser();
+      let ordersList = JSON.parse(localStorage.getItem("agrilinker_orders") || "[]");
+      const usersList = JSON.parse(localStorage.getItem("agrilinker_users") || "[]");
+
+      document.getElementById("welcome-text").textContent = `Welcome, ${currentUser.name}!`;
+
+      // Filter delivery jobs
+      const myJobs = ordersList.filter(o => o.deliveryId === currentUser.id);
+
+      // Render stats tiles
+      const completedJobsCount = myJobs.filter(o => o.status === "delivered").length;
+      const earningsSum = myJobs.filter(o => o.status === "delivered").reduce((sum, o) => sum + o.deliveryCharge, 0);
+      
+      document.getElementById("delivery-earnings").textContent = `₹${(currentUser.earnings + earningsSum).toFixed(2)}`;
+      document.getElementById("my-active-deliveries").textContent = myJobs.filter(o => ["accepted", "picked_up"].includes(o.status)).length;
+      document.getElementById("my-completed-deliveries").textContent = completedJobsCount;
+
+      const availJobsWrapper = document.getElementById("available-jobs-wrapper");
+      const activeJobsWrapper = document.getElementById("active-deliveries-wrapper");
+      
+      let deliveryMap = null;
+      let activeRouteData = null;
+
+      function renderJobs() {
+        availJobsWrapper.innerHTML = "";
+        activeJobsWrapper.innerHTML = "";
+
+        // Available: orders that have delivery opt-in, status "accepted", but NO deliveryId assigned
+        const available = ordersList.filter(o => o.deliveryCharge > 0 && o.status === "accepted" && !o.deliveryId);
+        
+        // Active: orders assigned to current delivery driver and not delivered
+        const active = ordersList.filter(o => o.deliveryId === currentUser.id && ["accepted", "picked_up"].includes(o.status));
+
+        // 1. Render Available
+        if (available.length === 0) {
+          availJobsWrapper.innerHTML = `<div class="glass-card" style="text-align:center; padding:1.5rem; color:var(--text-muted);">No new available delivery runs in your area right now.</div>`;
+        } else {
+          available.forEach(o => {
+            const card = document.createElement("div");
+            card.className = "glass-card order-log-card";
+            const farmer = usersList.find(u => u.id === o.farmerId) || { name: "Farmer" };
+            const customer = usersList.find(u => u.id === o.customerId) || { name: "Customer" };
+            
+            // Calculate distance
+            const dist = AgriMap.calculateDistance(
+              o.farmerCoords[0], o.farmerCoords[1],
+              o.deliveryCoords[0], o.deliveryCoords[1]
+            );
+
+            card.innerHTML = `
+              <div class="order-log-header">
+                <strong>Run #${o.id.split('_')[1]}</strong>
+                <span class="status-pill status-pending">PENDING PICKUP</span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:0.75rem;">
+                📍 <strong>Pickup:</strong> ${farmer.name} (${o.farmerCoords.map(n=>n.toFixed(3)).join(', ')})<br>
+                🏁 <strong>Delivery:</strong> ${customer.name} (${o.deliveryCoords.map(n=>n.toFixed(3)).join(', ')})<br>
+                📏 <strong>Distance:</strong> ${dist} km
+              </div>
+              <div class="order-log-footer">
+                <div style="font-weight:700; color:var(--accent); font-size:1.1rem;">Payout: ₹${o.deliveryCharge.toFixed(2)}</div>
+                <button class="btn btn-accent accept-job-btn" data-id="${o.id}"><i class="ri-check-double-line"></i> Accept Job</button>
+              </div>
+            `;
+            availJobsWrapper.appendChild(card);
+          });
+        }
+
+        // 2. Render Active
+        if (active.length === 0) {
+          activeJobsWrapper.innerHTML = `<div class="glass-card" style="text-align:center; padding:1.5rem; color:var(--text-muted);">You have no active runs. Select one from available list.</div>`;
+        } else {
+          active.forEach(o => {
+            const card = document.createElement("div");
+            card.className = "glass-card order-log-card";
+            const farmer = usersList.find(u => u.id === o.farmerId) || { name: "Farmer" };
+            const customer = usersList.find(u => u.id === o.customerId) || { name: "Customer" };
+
+            let actionBtn = "";
+            if (o.status === "accepted") {
+              actionBtn = `<button class="btn btn-primary pickup-job-btn" data-id="${o.id}"><i class="ri-takeaway-line"></i> Mark Picked Up</button>`;
+            } else if (o.status === "picked_up") {
+              actionBtn = `<button class="btn btn-accent deliver-job-btn" data-id="${o.id}"><i class="ri-checkbox-circle-line"></i> Mark Delivered</button>`;
+            }
+
+            card.innerHTML = `
+              <div class="order-log-header">
+                <strong>Run #${o.id.split('_')[1]}</strong>
+                <span class="status-pill status-accepted">${o.status.toUpperCase()}</span>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:0.75rem;">
+                📍 <strong>Pickup:</strong> ${farmer.name} - ${o.deliveryAddress.includes("Self-Pickup") ? "Farm Address" : farmer.address}<br>
+                🏁 <strong>Delivery:</strong> ${customer.name} - ${o.deliveryAddress}
+              </div>
+              <div class="order-log-footer">
+                <div style="font-weight:700; color:var(--accent); font-size:1.1rem;">Payout: ₹${o.deliveryCharge.toFixed(2)}</div>
+                <div style="display:flex; gap:0.5rem;">
+                  <button class="btn btn-secondary nav-job-btn" data-id="${o.id}"><i class="ri-navigation-line"></i> View Route</button>
+                  ${actionBtn}
+                </div>
+              </div>
+            `;
+            activeJobsWrapper.appendChild(card);
+          });
+        }
+
+        // Attach Available Action Listeners
+        document.querySelectorAll(".accept-job-btn").forEach(btn => {
+          btn.addEventListener("click", () => {
+            const id = btn.getAttribute("data-id");
+            acceptJob(id);
+          });
+        });
+
+        // Attach Active Action Listeners
+        document.querySelectorAll(".nav-job-btn").forEach(btn => {
+          btn.addEventListener("click", () => {
+            const id = btn.getAttribute("data-id");
+            viewRouteOnMap(id);
+          });
+        });
+
+        document.querySelectorAll(".pickup-job-btn").forEach(btn => {
+          btn.addEventListener("click", () => {
+            const id = btn.getAttribute("data-id");
+            updateJobStatus(id, "picked_up");
+          });
+        });
+
+        document.querySelectorAll(".deliver-job-btn").forEach(btn => {
+          btn.addEventListener("click", () => {
+            const id = btn.getAttribute("data-id");
+            updateJobStatus(id, "delivered");
+          });
+        });
+      }
+
+      function acceptJob(orderId) {
+        const idx = ordersList.findIndex(o => o.id === orderId);
+        if (idx !== -1) {
+          ordersList[idx].deliveryId = currentUser.id;
+          localStorage.setItem("agrilinker_orders", JSON.stringify(ordersList));
+          App.showToast("Job accepted! Head to pickup point.");
+          renderJobs();
+        }
+      }
+
+      function updateJobStatus(orderId, nextStatus) {
+        const idx = ordersList.findIndex(o => o.id === orderId);
+        if (idx !== -1) {
+          ordersList[idx].status = nextStatus;
+          localStorage.setItem("agrilinker_orders", JSON.stringify(ordersList));
+          App.showToast(`Job updated to ${nextStatus.replace('_', ' ')}`);
+          renderJobs();
+          
+          // Clear active map if job is complete
+          if (nextStatus === "delivered") {
+            document.getElementById("delivery-map-container").style.display = "none";
+            document.getElementById("delivery-map-placeholder").style.display = "flex";
+            document.getElementById("route-details-panel").style.display = "none";
+            
+            // Increment UI stats
+            setTimeout(() => {
+              location.reload();
+            }, 1000);
+          }
+        }
+      }
+
+      function viewRouteOnMap(orderId) {
+        const order = ordersList.find(o => o.id === orderId);
+        if (!order) return;
+
+        activeRouteData = order;
+        
+        document.getElementById("delivery-map-placeholder").style.display = "none";
+        document.getElementById("delivery-map-container").style.display = "block";
+        document.getElementById("route-details-panel").style.display = "block";
+
+        const dist = AgriMap.calculateDistance(
+          order.farmerCoords[0], order.farmerCoords[1],
+          order.deliveryCoords[0], order.deliveryCoords[1]
+        );
+
+        document.getElementById("route-job-title").textContent = `Run #${order.id.split('_')[1]}`;
+        document.getElementById("route-job-dist").textContent = `Distance: ${dist} km`;
+        document.getElementById("route-job-pay").textContent = `Earnings: ₹${order.deliveryCharge.toFixed(2)}`;
+
+        if (deliveryMap) {
+          deliveryMap.remove();
+        }
+
+        // Mid point center
+        const midLat = (order.farmerCoords[0] + order.deliveryCoords[0]) / 2;
+        const midLng = (order.farmerCoords[1] + order.deliveryCoords[1]) / 2;
+        
+        deliveryMap = AgriMap.init("delivery-map-container", [midLat, midLng], 11);
+        
+        // Add markers for Pickup (farmer) and dropoff (customer)
+        AgriMap.addMarker(deliveryMap, order.farmerCoords, "Farmer Pickup Point", "farmer");
+        AgriMap.addMarker(deliveryMap, order.deliveryCoords, "Customer Delivery Point", "customer");
+
+        // Route line
+        L.polyline([order.farmerCoords, order.deliveryCoords], {
+          color: '#7cc243',
+          weight: 4,
+          opacity: 0.8
+        }).addTo(deliveryMap);
+
+        deliveryMap.invalidateSize();
+      }
+
+      // Initial jobs load rendering
+      renderJobs();
+    });
+  </script>
+</body>
+</html>

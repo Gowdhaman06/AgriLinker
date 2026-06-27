@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Marketplace — AgriLinker</title>
+  
+  <!-- Remix Icons CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+  <!-- Leaflet CSS CDN -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <!-- Custom Stylesheets -->
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/marketplace.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="nav-container">
+      <a href="index.html" class="brand-link">
+        <i class="ri-leaf-line"></i>
+        <span data-translate="brand">AgriLinker</span>
+      </a>
+      <nav id="main-nav">
+        <!-- Managed dynamically -->
+      </nav>
+      <div class="lang-selector-container">
+        <select class="lang-select" id="lang-select" aria-label="Select Language">
+          <option value="en">English</option>
+          <option value="hi">हिन्दी (Hindi)</option>
+          <option value="ta">தமிழ் (Tamil)</option>
+          <option value="te">తెలుగు (Telugu)</option>
+          <option value="kn">ಕನ್ನಡ (Kannada)</option>
+          <option value="ml">മലയാളം (Malayalam)</option>
+          <option value="mr">मраठী (Marathi)</option>
+          <option value="gu">ગુજરાતી (Gujarati)</option>
+          <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
+          <option value="bn">বাংলা (Bengali)</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Marketplace Search and Filter Bar -->
+    <div class="filters-bar glass-card">
+      <div class="search-wrapper">
+        <i class="ri-search-line"></i>
+        <input type="text" id="search-input" class="form-control" placeholder="Search fresh vegetables, fruits, grains..." data-translate="searchPlaceholder">
+      </div>
+      
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+        <button class="filter-btn active" data-category="all" data-translate="allCategories">All Categories</button>
+        <button class="filter-btn" data-category="vegetables" data-translate="vegetables">Vegetables</button>
+        <button class="filter-btn" data-category="fruits" data-translate="fruits">Fruits</button>
+        <button class="filter-btn" data-category="grains" data-translate="grains">Grains & Pulses</button>
+        <button class="filter-btn" data-category="dairy" data-translate="dairy">Dairy Products</button>
+        <button class="filter-btn" data-category="herbs" data-translate="herbs">Herbs & Spices</button>
+      </div>
+
+      <button class="btn btn-secondary toggle-view-btn" id="toggle-view-btn">
+        <i class="ri-map-2-line"></i>
+        <span id="view-mode-text" data-translate="farmFinder">Farm Finder Map</span>
+      </button>
+    </div>
+
+    <!-- Main Content Area: Catalogue Grid vs Map View -->
+    <div class="marketplace-layout">
+      
+      <!-- Left side catalog content -->
+      <div>
+        <!-- 1. Grid of Produce Cards -->
+        <div class="products-grid" id="products-container">
+          <!-- Seeded dynamically -->
+        </div>
+
+        <!-- 2. Interactive Map Container (Leaflet) -->
+        <div id="farm-finder-map-wrapper" style="display:none; position:relative;">
+          <div id="marketplace-map" class="map-container" style="height: 550px;"></div>
+          <div class="glass-card" style="position:absolute; top:10px; right:10px; z-index:1000; padding:0.5rem 1rem; font-size:0.85rem; pointer-events:none; background:rgba(11,21,14,0.9);">
+            🟢 <span data-translate="farmLoc">Farm Location</span> (Click to Shop)
+          </div>
+        </div>
+      </div>
+
+      <!-- Right side shopping cart panel -->
+      <div class="glass-card cart-panel">
+        <div class="cart-title">
+          <span data-translate="cart">Shopping Cart</span>
+          <span id="cart-count-badge" class="badge badge-accent">0</span>
+        </div>
+
+        <!-- Cart items wrapper -->
+        <div class="cart-items" id="cart-items-container">
+          <!-- Populated dynamically -->
+        </div>
+
+        <!-- Checkout option toggles -->
+        <div style="margin-top:1rem;">
+          <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+            <input type="checkbox" id="delivery-opt-in" style="cursor:pointer; width:18px; height:18px;">
+            <label for="delivery-opt-in" style="cursor:pointer; font-size:0.9rem;" data-translate="deliveryOption">Opt for AgriLinker Delivery Service</label>
+          </div>
+
+          <div id="delivery-charge-row" style="display:none; justify-content:space-between; font-size:0.85rem; color:var(--text-secondary); margin-bottom:0.5rem;">
+            <span data-translate="deliveryCharge">Delivery Charges</span>
+            <span id="delivery-charge-amount">₹0.00</span>
+          </div>
+        </div>
+
+        <!-- Totals & checkout button -->
+        <div class="cart-totals">
+          <div class="total-row">
+            <span>Subtotal</span>
+            <span id="cart-subtotal">₹0.00</span>
+          </div>
+          <div class="total-row final">
+            <span data-translate="totalAmount">Total Amount</span>
+            <span id="cart-total">₹0.00</span>
+          </div>
+          <button class="btn btn-primary" id="checkout-btn" style="width:100%; margin-top:1rem;" disabled data-translate="placeOrder">Place Order</button>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Checkout details confirmation Modal -->
+  <div class="modal-overlay" id="checkout-modal">
+    <div class="modal-content">
+      <h3 style="text-align:center; margin-bottom:1rem;" data-translate="checkout">Checkout Details</h3>
+      
+      <div id="checkout-summary-list" style="margin-bottom:1.5rem; max-height:180px; overflow-y:auto; border-bottom:1px solid var(--card-border); padding-bottom:1rem;">
+        <!-- Filled dynamically -->
+      </div>
+
+      <div class="form-group" id="checkout-delivery-address-group" style="display:none;">
+        <label for="checkout-address" data-translate="address">Delivery Address</label>
+        <textarea id="checkout-address" class="form-control" rows="2" placeholder="Confirm your delivery address"></textarea>
+        
+        <div style="margin-top:1rem;">
+          <label style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:0.25rem; display:block;">Select exact delivery coordinates pin</label>
+          <div id="checkout-map" class="map-container" style="height:180px;"></div>
+        </div>
+      </div>
+
+      <div class="total-row final" style="margin: 1.5rem 0;">
+        <span data-translate="totalAmount">Total Amount</span>
+        <span id="modal-checkout-total">₹0.00</span>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:1rem;">
+        <button class="btn btn-secondary" id="checkout-cancel" data-translate="cancel">Cancel</button>
+        <button class="btn btn-accent" id="checkout-confirm" data-translate="confirm">Confirm & Pay</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS CDN -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- App JS scripts -->
+  <script src="js/translations.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/marketplace.js"></script>
+</body>
+</html>

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Authentication — AgriLinker</title>
+  
+  <!-- Remix Icons CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+  <!-- Leaflet CSS CDN -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <!-- Custom Stylesheets -->
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/auth.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="nav-container">
+      <a href="index.html" class="brand-link">
+        <i class="ri-leaf-line"></i>
+        <span data-translate="brand">AgriLinker</span>
+      </a>
+      <nav id="main-nav">
+        <!-- Managed dynamically -->
+      </nav>
+      <div class="lang-selector-container">
+        <select class="lang-select" id="lang-select" aria-label="Select Language">
+          <option value="en">English</option>
+          <option value="hi">हिन्दी (Hindi)</option>
+          <option value="ta">தமிழ் (Tamil)</option>
+          <option value="te">తెలుగు (Telugu)</option>
+          <option value="kn">ಕನ್ನಡ (Kannada)</option>
+          <option value="ml">മലയാളം (Malayalam)</option>
+          <option value="mr">मराठी (Marathi)</option>
+          <option value="gu">ગુજરાતી (Gujarati)</option>
+          <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
+          <option value="bn">বাংলা (Bengali)</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <!-- Auth Main container -->
+  <main>
+    <div class="auth-wrapper glass-card">
+      <div class="auth-tabs">
+        <div class="auth-tab active" id="tab-login" data-translate="login">Login</div>
+        <div class="auth-tab" id="tab-register" data-translate="register">Register</div>
+      </div>
+
+      <!-- Mandatory Google Sign In Button -->
+      <button class="google-btn" id="google-signin-btn">
+        <i class="ri-google-fill"></i>
+        <span data-translate="googleSignIn">Continue with Google</span>
+      </button>
+
+      <div class="divider" data-translate="cancel">OR</div>
+
+      <!-- Login Form -->
+      <form id="login-form">
+        <div class="form-group">
+          <label for="login-email" data-translate="email">Email Address</label>
+          <input type="email" id="login-email" class="form-control" placeholder="Enter your email" required>
+        </div>
+        <div class="form-group">
+          <label for="login-password" data-translate="password">Password</label>
+          <input type="password" id="login-password" class="form-control" placeholder="Enter your password" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%; margin-top:1rem;" data-translate="login">Login</button>
+      </form>
+
+      <!-- Register Form -->
+      <form id="register-form" style="display:none;">
+        <div class="form-group">
+          <label for="register-name">Full Name</label>
+          <input type="text" id="register-name" class="form-control" placeholder="Enter your full name" required>
+        </div>
+        <div class="form-group">
+          <label for="register-email" data-translate="email">Email Address</label>
+          <input type="email" id="register-email" class="form-control" placeholder="Enter your email" required>
+        </div>
+        <div class="form-group">
+          <label for="register-password" data-translate="password">Password</label>
+          <input type="password" id="register-password" class="form-control" placeholder="Create a password" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%; margin-top:1rem;" data-translate="register">Register</button>
+      </form>
+    </div>
+  </main>
+
+  <!-- Post Registration Role & Location Picker Modal -->
+  <div class="modal-overlay" id="role-modal">
+    <div class="modal-content">
+      <h3 style="text-align:center; margin-bottom:0.5rem;" data-translate="selectRole">Choose your role to continue</h3>
+      <p style="text-align:center; color:var(--text-secondary); margin-bottom:1.5rem;">Select your role to personalize your dashboard setup.</p>
+      
+      <!-- Role options grid -->
+      <div class="role-cards">
+        <div class="role-card" data-role="farmer">
+          <i class="ri-plant-line"></i>
+          <h4 data-translate="farmer">Farmer</h4>
+          <p>Sell crops directly</p>
+        </div>
+        <div class="role-card" data-role="customer">
+          <i class="ri-user-heart-line"></i>
+          <h4 data-translate="customer">Customer</h4>
+          <p>Order fresh produce</p>
+        </div>
+        <div class="role-card" data-role="delivery">
+          <i class="ri-motorbike-line"></i>
+          <h4 data-translate="delivery">Delivery Partner</h4>
+          <p>Deliver packages</p>
+        </div>
+      </div>
+
+      <!-- Additional role information / Interactive Map container -->
+      <div id="role-extra-fields" style="display:none; margin-top:1.5rem;">
+        <div class="form-group">
+          <label for="role-phone" data-translate="phone">Phone Number</label>
+          <input type="text" id="role-phone" class="form-control" placeholder="+91 XXXXX XXXXX" required>
+        </div>
+        
+        <div class="form-group" id="address-field-group">
+          <label for="role-address" data-translate="address">Residential/Farm Address</label>
+          <input type="text" id="role-address" class="form-control" placeholder="Enter physical address">
+        </div>
+
+        <div class="form-group" id="map-selection-group" style="display:none;">
+          <label style="display:flex; justify-content:space-between;">
+            <span data-translate="setMapLoc">Click on map to set your location</span>
+            <span id="coords-indicator" style="color:var(--lime); font-size:0.85rem;">[None, None]</span>
+          </label>
+          <!-- Leaflet setup wrapper -->
+          <div id="role-location-map" class="map-container" style="margin-top:0.5rem; height:250px;"></div>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:2rem;">
+        <button class="btn btn-secondary" id="modal-cancel-btn" data-translate="cancel">Cancel</button>
+        <button class="btn btn-primary" id="modal-confirm-btn" data-translate="confirm" disabled>Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Google Sign In Mock Modal -->
+  <div class="google-mock-modal" id="google-mock">
+    <h3 style="margin-bottom:0.5rem;"><i class="ri-google-fill" style="color:#ea4335;"></i> Google Accounts</h3>
+    <p style="color:#4b5563; font-size:0.9rem;">Choose a Google account to log into AgriLinker.</p>
+    
+    <div class="google-account-item" data-email="gowdhaman.dev@gmail.com" data-name="Gowdhaman Dev">
+      <div class="google-avatar">G</div>
+      <div>
+        <div style="font-weight:600;">Gowdhaman Dev</div>
+        <div style="font-size:0.8rem; color:#4b5563;">gowdhaman.dev@gmail.com</div>
+      </div>
+    </div>
+    
+    <div class="google-account-item" data-email="harish.farmer@gmail.com" data-name="Harish Kumar">
+      <div class="google-avatar" style="background:#ea4335;">H</div>
+      <div>
+        <div style="font-weight:600;">Harish Kumar</div>
+        <div style="font-size:0.8rem; color:#4b5563;">harish.farmer@gmail.com</div>
+      </div>
+    </div>
+
+    <div style="margin-top:1.5rem; text-align:right;">
+      <button class="btn btn-secondary" id="google-mock-cancel" style="padding:0.4rem 1rem; font-size:0.85rem;">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Leaflet JS CDN -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- App JS Files -->
+  <script src="js/translations.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/auth.js"></script>
+</body>
+</html>

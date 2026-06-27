@@ -1,0 +1,250 @@
+/* Marketplace Page Styles */
+.marketplace-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+@media(min-width: 992px) {
+  .marketplace-layout {
+    grid-template-columns: 3fr 1fr;
+  }
+}
+
+.filters-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.filter-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--card-border);
+  color: var(--text-secondary);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: var(--transition);
+}
+
+.filter-btn.active, .filter-btn:hover {
+  background: var(--lime);
+  color: #111;
+  border-color: var(--lime);
+}
+
+.search-wrapper {
+  flex: 1;
+  min-width: 250px;
+  position: relative;
+}
+
+.search-wrapper i {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+}
+
+.search-wrapper input {
+  padding-left: 2.5rem;
+}
+
+.toggle-view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Product Cards Grid */
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1.5rem;
+}
+
+.product-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.product-img-container {
+  height: 180px;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.product-img-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: var(--transition);
+}
+
+.product-card:hover .product-img-container img {
+  transform: scale(1.05);
+}
+
+.organic-badge {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  background: var(--lime);
+  color: #0b150e;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+}
+
+.product-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.product-cat {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--lime);
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.product-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  line-height: 1.3;
+}
+
+.product-farmer {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.product-farmer a {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.product-farmer a:hover {
+  color: var(--lime);
+}
+
+.product-price-stock {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  margin-bottom: 1rem;
+}
+
+.price-tag {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.stock-tag {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Sidebar Cart */
+.cart-panel {
+  position: sticky;
+  top: 90px;
+  height: fit-content;
+}
+
+.cart-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cart-items {
+  max-height: 280px;
+  overflow-y: auto;
+  margin-bottom: 1.5rem;
+}
+
+.cart-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.cart-item-details h5 {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.cart-item-details p {
+  font-size: 0.8rem;
+  color: var(--accent);
+}
+
+.cart-item-qty {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.qty-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.qty-btn:hover {
+  background: var(--lime);
+  color: #111;
+}
+
+.cart-totals {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--card-border);
+}
+
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.total-row.final {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--lime);
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--card-border);
+}

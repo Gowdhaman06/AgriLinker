@@ -1,0 +1,17 @@
+{
+  "name": "agrilinker",
+  "version": "1.0.0",
+  "description": "Comprehensive farm-to-table platform connecting Indian farmers directly with consumers and delivery partners.",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx -y http-server . -p 3000"
+  },
+  "keywords": [
+    "farm-to-table",
+    "leaflet",
+    "multilingual",
+    "india"
+  ],
+  "author": "AgriLinker Team",
+  "license": "MIT"
+}

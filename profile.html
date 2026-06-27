@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Profile — AgriLinker</title>
+  
+  <!-- Remix Icons CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+  <!-- Leaflet CSS CDN -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <!-- Custom Stylesheets -->
+  <link rel="stylesheet" href="css/main.css">
+  
+  <style>
+    .profile-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+    
+    @media(min-width: 768px) {
+      .profile-layout {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    
+    .profile-avatar-card {
+      text-align: center;
+      padding: 3rem 2rem;
+    }
+    
+    .profile-avatar-circle {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: var(--primary-gradient);
+      color: white;
+      font-size: 3rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.5rem auto;
+      box-shadow: var(--shadow);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="nav-container">
+      <a href="index.html" class="brand-link">
+        <i class="ri-leaf-line"></i>
+        <span data-translate="brand">AgriLinker</span>
+      </a>
+      <nav id="main-nav">
+        <!-- Managed dynamically -->
+      </nav>
+      <div class="lang-selector-container">
+        <select class="lang-select" id="lang-select" aria-label="Select Language">
+          <option value="en">English</option>
+          <option value="hi">हिन्दी (Hindi)</option>
+          <option value="ta">தமிழ் (Tamil)</option>
+          <option value="te">తెలుగు (Telugu)</option>
+          <option value="kn">ಕನ್ನಡ (Kannada)</option>
+          <option value="ml">മലയാളം (Malayalam)</option>
+          <option value="mr">मराठी (Marathi)</option>
+          <option value="gu">ગુજરાતી (Gujarati)</option>
+          <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
+          <option value="bn">বাংলা (Bengali)</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <h2 data-translate="profile">User Profile</h2>
+    <p style="color:var(--text-secondary);">Manage your account preferences and location settings.</p>
+    
+    <div class="profile-layout">
+      
+      <!-- Left side Avatar & Info -->
+      <div class="glass-card profile-avatar-card" style="height:fit-content;">
+        <div class="profile-avatar-circle" id="prof-avatar">-</div>
+        <h3 id="prof-display-name" style="font-weight:700;">Full Name</h3>
+        <p id="prof-display-role" class="badge badge-accent" style="margin-top:0.5rem; text-transform:uppercase;">Role</p>
+        
+        <div style="text-align:left; margin-top:2.5rem; border-top:1px solid var(--card-border); padding-top:1.5rem; display:flex; flex-direction:column; gap:0.75rem; font-size:0.95rem;">
+          <div><i class="ri-mail-line" style="color:var(--lime);"></i> <span id="prof-display-email" style="margin-left:0.5rem;">email@example.com</span></div>
+          <div><i class="ri-calendar-line" style="color:var(--lime);"></i> Joined: <span id="prof-display-joined">2026-06-01</span></div>
+        </div>
+      </div>
+
+      <!-- Right side settings form -->
+      <div class="glass-card">
+        <h4 style="margin-bottom:1.5rem; border-bottom:1px solid var(--card-border); padding-bottom:0.75rem;">Account details</h4>
+        
+        <form id="profile-edit-form">
+          <div class="form-group">
+            <label for="prof-name">Full Name</label>
+            <input type="text" id="prof-name" class="form-control" required>
+          </div>
+
+          <div class="form-group">
+            <label for="prof-phone" data-translate="phone">Phone Number</label>
+            <input type="text" id="prof-phone" class="form-control" required>
+          </div>
+
+          <div class="form-group" id="prof-address-group" style="display:none;">
+            <label for="prof-address" data-translate="address">Residential/Farm Address</label>
+            <input type="text" id="prof-address" class="form-control">
+          </div>
+
+          <div class="form-group" id="prof-map-group" style="display:none;">
+            <label style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
+              <span data-translate="setMapLoc">Click on map to set your location</span>
+              <span id="prof-coords-val" style="color:var(--lime); font-size:0.85rem;">[None, None]</span>
+            </label>
+            <!-- Leaflet map setup -->
+            <div id="profile-coordinate-map" class="map-container" style="height:220px;"></div>
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width:100%; margin-top:2rem;" data-translate="save">Save Changes</button>
+        </form>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Leaflet JS CDN -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- App JS scripts -->
+  <script src="js/translations.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/map.js"></script>
+
+  <script>
+    // Embedded inline profile controller script
+    document.addEventListener("DOMContentLoaded", () => {
+      const currentUser = App.getCurrentUser();
+      if (!currentUser) {
+        window.location.href = "auth.html";
+        return;
+      }
+
+      // Fill Left avatar panel details
+      document.getElementById("prof-avatar").textContent = currentUser.name.charAt(0);
+      document.getElementById("prof-display-name").textContent = currentUser.name;
+      document.getElementById("prof-display-role").textContent = currentUser.role || "No Role";
+      document.getElementById("prof-display-email").textContent = currentUser.email;
+      document.getElementById("prof-display-joined").textContent = currentUser.joined || "2026-06-27";
+
+      // Fill form values
+      const nameInput = document.getElementById("prof-name");
+      const phoneInput = document.getElementById("prof-phone");
+      const addressInput = document.getElementById("prof-address");
+      const addressGroup = document.getElementById("prof-address-group");
+      const mapGroup = document.getElementById("prof-map-group");
+      const coordsValIndicator = document.getElementById("prof-coords-val");
+
+      nameInput.value = currentUser.name;
+      phoneInput.value = currentUser.phone || "";
+
+      let mapInstance = null;
+      let markerInstance = null;
+      let activeCoords = currentUser.coords || [12.9716, 77.5946];
+
+      if (currentUser.role === "farmer" || currentUser.role === "customer") {
+        addressGroup.style.display = "block";
+        mapGroup.style.display = "block";
+        addressInput.value = currentUser.address || "";
+        coordsValIndicator.textContent = currentUser.coords ? `[${currentUser.coords.map(n=>n.toFixed(4)).join(', ')}]` : "[None, None]";
+
+        // Initialize Map
+        setTimeout(() => {
+          mapInstance = AgriMap.init("profile-coordinate-map", activeCoords, 12);
+          markerInstance = AgriMap.addMarker(mapInstance, activeCoords, "Your Profile Coordinates Pin", currentUser.role, true);
+
+          mapInstance.on("click", (e) => {
+            const lat = parseFloat(e.latlng.lat.toFixed(4));
+            const lng = parseFloat(e.latlng.lng.toFixed(4));
+            activeCoords = [lat, lng];
+            coordsValIndicator.textContent = `[${lat}, ${lng}]`;
+            markerInstance.setLatLng(e.latlng);
+          });
+
+          markerInstance.on("dragend", () => {
+            const pos = markerInstance.getLatLng();
+            const lat = parseFloat(pos.lat.toFixed(4));
+            const lng = parseFloat(pos.lng.toFixed(4));
+            activeCoords = [lat, lng];
+            coordsValIndicator.textContent = `[${lat}, ${lng}]`;
+          });
+        }, 300);
+      }
+
+      // Save form submit
+      document.getElementById("profile-edit-form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        
+        currentUser.name = nameInput.value;
+        currentUser.phone = phoneInput.value;
+
+        if (currentUser.role === "farmer" || currentUser.role === "customer") {
+          currentUser.address = addressInput.value;
+          currentUser.coords = activeCoords;
+        }
+
+        // Update database and current session
+        App.saveCurrentUser(currentUser);
+        App.showToast("Profile details updated successfully!");
+
+        // Refresh left avatar details
+        document.getElementById("prof-avatar").textContent = currentUser.name.charAt(0);
+        document.getElementById("prof-display-name").textContent = currentUser.name;
+      });
+    });
+  </script>
+</body>
+</html>

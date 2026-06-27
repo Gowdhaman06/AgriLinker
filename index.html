@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgriLinker — From Farm to Your Table</title>
+  <meta name="description" content="Directly connect with local Indian farmers to get fresh produce, vegetables, fruits, and dairy delivered right to your doorstep. Join as a farmer, consumer, or delivery courier.">
+  
+  <!-- Remix Icons CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+  <!-- Leaflet CSS CDN -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <!-- Custom Stylesheets -->
+  <link rel="stylesheet" href="css/main.css">
+  
+  <style>
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin: 4rem 0;
+    }
+    .feature-card {
+      text-align: center;
+      padding: 3rem 2rem;
+    }
+    .feature-card i {
+      font-size: 3.5rem;
+      color: var(--lime);
+      margin-bottom: 1.5rem;
+      display: inline-block;
+    }
+    .feature-card h3 {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      color: var(--text-primary);
+    }
+    .feature-card p {
+      color: var(--text-secondary);
+    }
+    .stats-section {
+      display: flex;
+      justify-content: space-around;
+      flex-wrap: wrap;
+      gap: 2rem;
+      margin: 4rem 0;
+      padding: 3rem;
+      background: linear-gradient(135deg, rgba(30, 107, 63, 0.2) 0%, rgba(124, 194, 67, 0.1) 100%);
+      border-radius: 20px;
+      border: 1px solid var(--card-border);
+    }
+    .stat-item {
+      text-align: center;
+    }
+    .stat-num {
+      font-size: 3rem;
+      font-weight: 800;
+      color: var(--lime);
+    }
+    .stat-label {
+      color: var(--text-secondary);
+      font-size: 1rem;
+    }
+    .cta-banner {
+      padding: 4rem 2rem;
+      text-align: center;
+      margin: 4rem 0;
+      background: radial-gradient(circle, rgba(124, 194, 67, 0.15) 0%, transparent 70%);
+    }
+    .cta-banner h2 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sticky Navbar Header -->
+  <header>
+    <div class="nav-container">
+      <a href="index.html" class="brand-link" id="brand-logo">
+        <i class="ri-leaf-line"></i>
+        <span data-translate="brand">AgriLinker</span>
+      </a>
+      
+      <nav id="main-nav">
+        <!-- Managed dynamically by app.js -->
+      </nav>
+
+      <div class="lang-selector-container">
+        <select class="lang-select" id="lang-select" aria-label="Select Language">
+          <option value="en">English</option>
+          <option value="hi">हिन्दी (Hindi)</option>
+          <option value="ta">தமிழ் (Tamil)</option>
+          <option value="te">తెలుగు (Telugu)</option>
+          <option value="kn">ಕನ್ನಡ (Kannada)</option>
+          <option value="ml">മലയാളം (Malayalam)</option>
+          <option value="mr">मराठी (Marathi)</option>
+          <option value="gu">ગુજરાતી (Gujarati)</option>
+          <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
+          <option value="bn">বাংলা (Bengali)</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Landing Section -->
+  <main>
+    <section class="hero">
+      <h1 data-translate="slogan">From Farm to Your Table</h1>
+      <p data-translate="tagline">Connecting India's Farmers, Customers, and Delivery partners directly.</p>
+      <div style="display: flex; gap: 1rem; justify-content: center;">
+        <a href="auth.html" class="btn btn-primary btn-lg" id="btn-get-started" data-translate="getStarted">Get Started</a>
+        <a href="#features-anchor" class="btn btn-secondary btn-lg" id="btn-learn-more" data-translate="learnMore">Learn More</a>
+      </div>
+    </section>
+
+    <!-- Services Section -->
+    <section id="features-anchor" class="features-grid">
+      <!-- Farmer Description -->
+      <div class="glass-card feature-card">
+        <i class="ri-plant-line"></i>
+        <h3 data-translate="farmer">Farmer</h3>
+        <p data-translate="roleFarmerDesc">Sell your fresh produce directly to consumers with fair pricing.</p>
+      </div>
+
+      <!-- Customer Description -->
+      <div class="glass-card feature-card">
+        <i class="ri-user-heart-line"></i>
+        <h3 data-translate="customer">Customer</h3>
+        <p data-translate="roleCustomerDesc">Buy fresh organic produce directly from local farms near you.</p>
+      </div>
+
+      <!-- Delivery Description -->
+      <div class="glass-card feature-card">
+        <i class="ri-motorbike-line"></i>
+        <h3 data-translate="delivery">Delivery Partner</h3>
+        <p data-translate="roleDeliveryDesc">Deliver fresh produce and earn competitive payout rates.</p>
+      </div>
+    </section>
+
+    <!-- Platform Stats -->
+    <section class="stats-section">
+      <div class="stat-item">
+        <div class="stat-num">50,000+</div>
+        <div class="stat-label">Farmers Enrolled</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">200K+</div>
+        <div class="stat-label">Happy Customers</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">₹25 Cr+</div>
+        <div class="stat-label">Farmer Revenue Generated</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">10+</div>
+        <div class="stat-label">Regional Languages Supported</div>
+      </div>
+    </section>
+
+    <!-- Final CTA banner -->
+    <section class="cta-banner">
+      <h2 data-translate="slogan">From Farm to Your Table</h2>
+      <p style="margin-bottom: 2rem; color: var(--text-secondary);">Direct connect, fair margins, healthier organic food for everyone.</p>
+      <a href="auth.html" class="btn btn-accent" id="btn-cta-join">Join AgriLinker Today</a>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <p>&copy; 2026 AgriLinker. Connecting Indian agriculture directly with tech. Built with 💚.</p>
+  </footer>
+
+  <!-- Leaflet JS CDN -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Load translation strings -->
+  <script src="js/translations.js"></script>
+  <!-- Load global app logic -->
+  <script src="js/app.js"></script>
+</body>
+</html>
