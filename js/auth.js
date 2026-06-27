@@ -156,6 +156,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Initialize Google Identity Services
   function initGoogleOAuth() {
+    if (window.location.protocol === 'file:') {
+      App.showToast("Warning: Google Sign-In requires a web server (http://localhost). Running from file:// will cause a Google Error 400.", "error");
+    }
+
     if (typeof google !== 'undefined') {
       google.accounts.id.initialize({
         client_id: "4533466381-ik9fcpe5b7ock54hsq4kvj3m4r5svrv4.apps.googleusercontent.com",
