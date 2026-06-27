@@ -160,6 +160,25 @@ nav a:hover, nav a.active {
   pointer-events: none;
 }
 
+.lang-select option {
+  background-color: #0b150e !important;
+  color: #f9fafb !important;
+  padding: 10px;
+}
+
+.lang-select option:nth-child(3n+1) {
+  color: #7cc243 !important; /* Lime */
+}
+
+.lang-select option:nth-child(3n+2) {
+  color: #e8a020 !important; /* Amber */
+}
+
+.lang-select option:nth-child(3n+3) {
+  color: #10b981 !important; /* Green */
+}
+
+
 /* Main Container Layouts */
 main {
   max-width: 1200px;

@@ -13,6 +13,8 @@
   <!-- Custom Stylesheets -->
   <link rel="stylesheet" href="css/main.css">
   <link rel="stylesheet" href="css/auth.css">
+  <!-- Google Identity Services (OAuth) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
@@ -52,10 +54,7 @@
       </div>
 
       <!-- Mandatory Google Sign In Button -->
-      <button class="google-btn" id="google-signin-btn">
-        <i class="ri-google-fill"></i>
-        <span data-translate="googleSignIn">Continue with Google</span>
-      </button>
+      <div id="google-signin-btn" style="display:flex; justify-content:center; margin-bottom:1.5rem; width:100%;"></div>
 
       <div class="divider" data-translate="cancel">OR</div>
 

@@ -7,9 +7,6 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // Google sign in elements
   const googleBtn = document.getElementById("google-signin-btn");
-  const googleMock = document.getElementById("google-mock");
-  const googleMockCancel = document.getElementById("google-mock-cancel");
-  const googleAccountItems = document.querySelectorAll(".google-account-item");
   
   // Modal elements
   const roleModal = document.getElementById("role-overlay") || document.getElementById("role-modal");
@@ -101,51 +98,80 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 1000);
   });
 
-  // 4. Google Sign In Mocking Flow
-  googleBtn.addEventListener("click", () => {
-    googleMock.classList.add("active");
-  });
+  // 4. Google Sign In OAuth Integration
+  function handleCredentialResponse(response) {
+    const token = response.credential;
+    const payload = decodeJwt(token);
+    if (!payload) {
+      App.showToast("Google Authentication failed", "error");
+      return;
+    }
 
-  googleMockCancel.addEventListener("click", () => {
-    googleMock.classList.remove("active");
-  });
+    const email = payload.email;
+    const name = payload.name;
 
-  googleAccountItems.forEach(item => {
-    item.addEventListener("click", () => {
-      const email = item.getAttribute("data-email");
-      const name = item.getAttribute("data-name");
-      googleMock.classList.remove("active");
+    const users = JSON.parse(localStorage.getItem("agrilinker_users") || "[]");
+    let matchedUser = users.find(u => u.email === email);
 
-      const users = JSON.parse(localStorage.getItem("agrilinker_users") || "[]");
-      let matchedUser = users.find(u => u.email === email);
+    if (!matchedUser) {
+      // Register Google User
+      matchedUser = {
+        id: "google_" + payload.sub,
+        name: name,
+        email: email,
+        password: "google_oauth_bypass",
+        role: null,
+        joined: new Date().toISOString().split('T')[0]
+      };
+      users.push(matchedUser);
+      localStorage.setItem("agrilinker_users", JSON.stringify(users));
+    }
 
-      if (!matchedUser) {
-        // Register Google User
-        matchedUser = {
-          id: "google_" + Date.now(),
-          name: name,
-          email: email,
-          password: "google_oauth_bypass",
-          role: null,
-          joined: new Date().toISOString().split('T')[0]
-        };
-        users.push(matchedUser);
-        localStorage.setItem("agrilinker_users", JSON.stringify(users));
+    localStorage.setItem("agrilinker_current_user", JSON.stringify(matchedUser));
+    App.showToast(`Signed in as ${name}`);
+
+    setTimeout(() => {
+      if (!matchedUser.role) {
+        tempUserSession = matchedUser;
+        openRoleModal();
+      } else {
+        App.redirectToDashboard(matchedUser.role);
       }
+    }, 1000);
+  }
 
-      localStorage.setItem("agrilinker_current_user", JSON.stringify(matchedUser));
-      App.showToast(`Signed in as ${name}`);
+  function decodeJwt(token) {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      return JSON.parse(jsonPayload);
+    } catch (e) {
+      console.error("JWT decoding failed:", e);
+      return null;
+    }
+  }
 
-      setTimeout(() => {
-        if (!matchedUser.role) {
-          tempUserSession = matchedUser;
-          openRoleModal();
-        } else {
-          App.redirectToDashboard(matchedUser.role);
-        }
-      }, 1000);
-    });
-  });
+  // Initialize Google Identity Services
+  function initGoogleOAuth() {
+    if (typeof google !== 'undefined') {
+      google.accounts.id.initialize({
+        client_id: "4533466381-ik9fcpe5b7ock54hsq4kvj3m4r5svrv4.apps.googleusercontent.com",
+        callback: handleCredentialResponse
+      });
+      google.accounts.id.renderButton(
+        document.getElementById("google-signin-btn"),
+        { theme: "filled_blue", size: "large", text: "continue_with" }
+      );
+    } else {
+      setTimeout(initGoogleOAuth, 300);
+    }
+  }
+
+  // Trigger Google load
+  initGoogleOAuth();
 
   // 5. Role Selection Modal Trigger
   function openRoleModal() {
