@@ -69,6 +69,9 @@
           <input type="password" id="login-password" class="form-control" placeholder="Enter your password" required>
         </div>
         <button type="submit" class="btn btn-primary" style="width:100%; margin-top:1rem;" data-translate="login">Login</button>
+        <div style="text-align: right; margin-top: 0.75rem; font-size: 0.85rem;">
+          <a href="#" id="forgot-password-link" style="color: var(--lime); text-decoration: none; font-weight: 500;">Forgot Password?</a>
+        </div>
       </form>
 
       <!-- Register Form -->
@@ -86,6 +89,47 @@
           <input type="password" id="register-password" class="form-control" placeholder="Create a password" required>
         </div>
         <button type="submit" class="btn btn-primary" style="width:100%; margin-top:1rem;" data-translate="register">Register</button>
+      </form>
+
+      <!-- Forgot Password Form -->
+      <form id="forgot-password-form" style="display:none;">
+        <div class="form-group">
+          <label for="forgot-email" data-translate="email">Email Address</label>
+          <input type="email" id="forgot-email" class="form-control" placeholder="Enter your registered email" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%; margin-top:1rem;">Send Reset Link</button>
+        <div style="text-align: center; margin-top: 1.25rem; font-size: 0.9rem;">
+          <a href="#" id="forgot-back-to-login" style="color: var(--text-secondary); text-decoration: none;">Back to Login</a>
+        </div>
+      </form>
+
+      <!-- Create New Password Form -->
+      <form id="reset-password-form" style="display:none;">
+        <h4 style="margin-bottom:1.5rem; text-align:center; font-weight:700;">Create New Password</h4>
+        <input type="hidden" id="reset-token-input">
+        
+        <div class="form-group">
+          <label for="reset-password">New Password</label>
+          <input type="password" id="reset-password" class="form-control" placeholder="Minimum 8 characters" required>
+          
+          <!-- Password Strength Indicators -->
+          <div style="margin-top: 0.5rem;">
+            <div style="display: flex; gap: 0.25rem; height: 5px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; margin-bottom: 0.25rem;">
+              <div id="strength-bar-1" style="flex:1; height:100%; transition:var(--transition);"></div>
+              <div id="strength-bar-2" style="flex:1; height:100%; transition:var(--transition);"></div>
+              <div id="strength-bar-3" style="flex:1; height:100%; transition:var(--transition);"></div>
+              <div id="strength-bar-4" style="flex:1; height:100%; transition:var(--transition);"></div>
+            </div>
+            <div id="strength-label" style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">Strength: Too Short</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="reset-confirm-password">Confirm Password</label>
+          <input type="password" id="reset-confirm-password" class="form-control" placeholder="Confirm new password" required>
+        </div>
+        
+        <button type="submit" class="btn btn-primary" id="reset-submit-btn" style="width:100%; margin-top:1.5rem;" disabled>Update Password</button>
       </form>
     </div>
   </main>
@@ -167,6 +211,37 @@
 
     <div style="margin-top:1.5rem; text-align:right;">
       <button class="btn btn-secondary" id="google-mock-cancel" style="padding:0.4rem 1rem; font-size:0.85rem;">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Mock Email Inbox Simulator Modal -->
+  <div class="modal-overlay" id="mock-email-modal">
+    <div class="modal-content" style="max-width: 450px; background: #122216; border-color: var(--card-border); color: #fff;">
+      <div style="display: flex; align-items: center; gap: 0.75rem; border-bottom: 1px solid var(--card-border); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+        <i class="ri-mail-send-line" style="font-size: 1.8rem; color: var(--lime);"></i>
+        <div>
+          <h4 style="font-weight: 700;">Local Email Inbox Simulator</h4>
+          <span style="font-size: 0.75rem; color: var(--text-secondary);">Simulated automated password reset notification</span>
+        </div>
+      </div>
+      
+      <p style="font-size: 0.85rem; line-height: 1.5; color: var(--text-secondary);">
+        To: <strong id="mock-email-to" style="color:var(--text-primary);">user@example.com</strong><br>
+        Subject: <strong style="color:var(--text-primary);">Password Reset Request — AgriLinker</strong>
+      </p>
+      
+      <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); border-radius: 8px; padding: 1.25rem; margin: 1.25rem 0; font-size: 0.9rem;">
+        <p style="margin-bottom: 0.75rem;">Greetings,</p>
+        <p style="margin-bottom: 1rem; color: var(--text-secondary);">We received a request to reset your password. Click the secure button below to choose a new password. This link will expire in 15 minutes.</p>
+        <div style="text-align: center; margin: 1.5rem 0;">
+          <a href="#" id="mock-email-link" class="btn btn-accent" style="text-decoration: none; font-size: 0.85rem; padding: 0.5rem 1rem;">Reset Password</a>
+        </div>
+        <p style="font-size: 0.75rem; color: var(--text-muted); word-break: break-all;" id="mock-email-url-text">Link URL</p>
+      </div>
+
+      <div style="text-align: right;">
+        <button class="btn btn-secondary" id="mock-email-close" style="padding: 0.4rem 1rem; font-size: 0.85rem;">Close Inbox</button>
+      </div>
     </div>
   </div>
 
