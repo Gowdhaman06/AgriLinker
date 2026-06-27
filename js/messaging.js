@@ -1,228 +1,246 @@
-// Messaging UI controller and simulated response bots
-document.addEventListener("DOMContentLoaded", () => {
-  const currentUser = App.getCurrentUser();
-  if (!currentUser) {
-    window.location.href = "auth.html";
-    return;
+// ============================================================
+// AgriLinker — Messaging Controller (Supabase Realtime-backed)
+// Real-time messages via Supabase Postgres Changes subscription
+// ============================================================
+
+document.addEventListener("DOMContentLoaded", async () => {
+
+  // ── Auth Guard ───────────────────────────────────────────────
+  const currentUser = await App.fetchCurrentUser();
+  if (!currentUser) { window.location.href = "auth.html"; return; }
+
+  // ── DOM ──────────────────────────────────────────────────────
+  const threadsContainer  = document.getElementById("threads-container");
+  const messagesContainer = document.getElementById("chat-messages-container");
+  const headerAvatar      = document.getElementById("chat-header-avatar");
+  const headerName        = document.getElementById("chat-header-name");
+  const headerRole        = document.getElementById("chat-header-role");
+  const chatForm          = document.getElementById("chat-send-form");
+  const chatInput         = document.getElementById("chat-input-field");
+  const sendBtn           = document.getElementById("chat-send-btn");
+
+  let allMessages       = [];
+  let allProfiles       = {};  // id → profile
+  let activeThreadUserId = null;
+  let realtimeChannel    = null;
+
+  // ── Load all messages for current user ──────────────────────
+  async function loadMessages() {
+    allMessages = await DB.getMessages(currentUser.id);
+    renderThreads();
   }
 
-  let messages = JSON.parse(localStorage.getItem("agrilinker_messages") || "[]");
-  const users = JSON.parse(localStorage.getItem("agrilinker_users") || "[]");
-
-  // DOM bindings
-  const threadsContainer = document.getElementById("threads-container");
-  const messagesContainer = document.getElementById("chat-messages-container");
-  const headerAvatar = document.getElementById("chat-header-avatar");
-  const headerName = document.getElementById("chat-header-name");
-  const headerRole = document.getElementById("chat-header-role");
-  
-  const chatForm = document.getElementById("chat-send-form");
-  const chatInput = document.getElementById("chat-input-field");
-  const sendBtn = document.getElementById("chat-send-btn");
-
-  let activeThreadUserId = null;
-
-  // 1. Group messages into thread list
-  function renderThreads() {
-    threadsContainer.innerHTML = "";
-    
-    // Find all users the current user has chatted with
-    const participantIds = new Set();
-    messages.forEach(msg => {
-      if (msg.senderId === currentUser.id) {
-        participantIds.add(msg.receiverId);
-      } else if (msg.receiverId === currentUser.id) {
-        participantIds.add(msg.senderId);
-      }
+  // ── Build profile lookup map from message participants ───────
+  async function buildProfileMap() {
+    const ids = new Set();
+    allMessages.forEach(m => {
+      if (m.sender_id)   ids.add(m.sender_id);
+      if (m.receiver_id) ids.add(m.receiver_id);
     });
 
-    // If query param is present, add that user too
-    const urlParams = new URLSearchParams(window.location.search);
+    // Also include chat_with param
+    const urlParams   = new URLSearchParams(window.location.search);
     const chatWithParam = urlParams.get("chat_with");
-    if (chatWithParam && chatWithParam !== currentUser.id) {
-      participantIds.add(chatWithParam);
-    }
+    if (chatWithParam) ids.add(chatWithParam);
 
-    const participants = Array.from(participantIds).map(pid => {
-      return users.find(u => u.id === pid) || { id: pid, name: "AgriLinker Member", role: "user" };
+    ids.delete(currentUser.id);
+
+    for (const id of ids) {
+      if (!allProfiles[id]) {
+        const profile = await DB.getProfile(id);
+        if (profile) allProfiles[id] = profile;
+      }
+    }
+  }
+
+  // ── 1. Render conversation threads list ─────────────────────
+  async function renderThreads() {
+    await buildProfileMap();
+    threadsContainer.innerHTML = "";
+
+    const participantIds = new Set();
+    allMessages.forEach(m => {
+      if (m.sender_id   === currentUser.id) participantIds.add(m.receiver_id);
+      if (m.receiver_id === currentUser.id) participantIds.add(m.sender_id);
     });
+
+    // Include URL param participant
+    const urlParams     = new URLSearchParams(window.location.search);
+    const chatWithParam = urlParams.get("chat_with");
+    if (chatWithParam && chatWithParam !== currentUser.id) participantIds.add(chatWithParam);
+
+    const participants = Array.from(participantIds).map(pid =>
+      allProfiles[pid] || { id: pid, name: "AgriLinker Member", role: "user" }
+    );
 
     if (participants.length === 0) {
-      threadsContainer.innerHTML = `<div style="text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.9rem;">No active conversations.</div>`;
+      threadsContainer.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:0.9rem;">No active conversations.</div>`;
       return;
     }
 
     participants.forEach(p => {
-      const threadMsgs = messages.filter(m => 
-        (m.senderId === currentUser.id && m.receiverId === p.id) ||
-        (m.senderId === p.id && m.receiverId === currentUser.id)
-      ).sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+      const threadMsgs = allMessages
+        .filter(m =>
+          (m.sender_id === currentUser.id && m.receiver_id === p.id) ||
+          (m.sender_id === p.id && m.receiver_id === currentUser.id)
+        )
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
-      const lastMsg = threadMsgs[threadMsgs.length - 1];
+      const lastMsg    = threadMsgs[threadMsgs.length - 1];
       const previewText = lastMsg ? lastMsg.content : "Tap to open chat...";
+      const unread     = threadMsgs.filter(m => m.receiver_id === currentUser.id && !m.read).length;
 
-      const threadDiv = document.createElement("div");
-      threadDiv.className = `thread-item ${activeThreadUserId === p.id ? 'active' : ''}`;
+      const threadDiv  = document.createElement("div");
+      threadDiv.className = `thread-item ${activeThreadUserId === p.id ? "active" : ""}`;
       threadDiv.setAttribute("data-id", p.id);
-      
+
       threadDiv.innerHTML = `
-        <div class="thread-avatar">${p.name.charAt(0)}</div>
+        <div class="thread-avatar">${(p.name || "?").charAt(0)}</div>
         <div class="thread-details">
-          <div class="thread-name">${p.name} <span class="badge ${p.role === 'farmer' ? 'badge-success' : 'badge-accent'}" style="font-size:0.6rem; padding:0.1rem 0.3rem; margin-left:0.25rem;">${p.role.toUpperCase()}</span></div>
+          <div class="thread-name">
+            ${p.name}
+            <span class="badge ${p.role === "farmer" ? "badge-success" : "badge-accent"}"
+              style="font-size:0.6rem;padding:0.1rem 0.3rem;margin-left:0.25rem;">
+              ${(p.role || "user").toUpperCase()}
+            </span>
+            ${unread > 0 ? `<span style="margin-left:auto;background:var(--lime);color:#000;border-radius:999px;padding:0.1rem 0.45rem;font-size:0.65rem;font-weight:700;">${unread}</span>` : ""}
+          </div>
           <div class="thread-preview">${previewText}</div>
-        </div>
-      `;
+        </div>`;
 
-      threadDiv.addEventListener("click", () => {
-        openConversation(p.id);
-      });
-
+      threadDiv.addEventListener("click", () => openConversation(p.id));
       threadsContainer.appendChild(threadDiv);
     });
   }
 
-  // 2. Open active conversation details
-  function openConversation(participantId) {
+  // ── 2. Open a conversation ───────────────────────────────────
+  async function openConversation(participantId) {
     activeThreadUserId = participantId;
-    
-    // Highlight correct thread list item
+
     document.querySelectorAll(".thread-item").forEach(item => {
-      if (item.getAttribute("data-id") === participantId) {
-        item.classList.add("active");
-      } else {
-        item.classList.remove("active");
-      }
+      item.classList.toggle("active", item.getAttribute("data-id") === participantId);
     });
 
-    const threadUser = users.find(u => u.id === participantId) || { name: "AgriLinker Member", role: "user" };
+    // Fetch profile if not cached
+    if (!allProfiles[participantId]) {
+      const p = await DB.getProfile(participantId);
+      if (p) allProfiles[participantId] = p;
+    }
 
-    // Update Header
-    headerAvatar.textContent = threadUser.name.charAt(0);
-    headerName.textContent = threadUser.name;
-    headerRole.textContent = threadUser.role.toUpperCase();
+    const threadUser = allProfiles[participantId] || { name: "AgriLinker Member", role: "user" };
+    headerAvatar.textContent = (threadUser.name || "?").charAt(0);
+    headerName.textContent   = threadUser.name || "AgriLinker Member";
+    headerRole.textContent   = (threadUser.role || "user").toUpperCase();
 
-    // Enable inputs
     chatInput.disabled = false;
-    sendBtn.disabled = false;
+    sendBtn.disabled   = false;
+
+    // Mark messages as read
+    await DB.markMessagesRead(currentUser.id, participantId);
+    allMessages = allMessages.map(m =>
+      m.sender_id === participantId && m.receiver_id === currentUser.id ? { ...m, read: true } : m
+    );
 
     renderMessages();
+    renderThreads();
   }
 
-  // 3. Render messages bubbles
+  // ── 3. Render message bubbles ────────────────────────────────
   function renderMessages() {
     if (!activeThreadUserId) return;
-
     messagesContainer.innerHTML = "";
 
-    const threadMsgs = messages.filter(m => 
-      (m.senderId === currentUser.id && m.receiverId === activeThreadUserId) ||
-      (m.senderId === activeThreadUserId && m.receiverId === currentUser.id)
-    ).sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+    const threadMsgs = allMessages
+      .filter(m =>
+        (m.sender_id === currentUser.id && m.receiver_id === activeThreadUserId) ||
+        (m.sender_id === activeThreadUserId && m.receiver_id === currentUser.id)
+      )
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
     if (threadMsgs.length === 0) {
-      messagesContainer.innerHTML = `<div style="margin: auto; text-align: center; color: var(--text-muted); font-size: 0.9rem;">No messages yet. Send a greeting to begin!</div>`;
+      messagesContainer.innerHTML = `<div style="margin:auto;text-align:center;color:var(--text-muted);font-size:0.9rem;">No messages yet. Say hello! 👋</div>`;
       return;
     }
 
     threadMsgs.forEach(m => {
-      const bubble = document.createElement("div");
-      const isSent = m.senderId === currentUser.id;
-      bubble.className = `msg-bubble ${isSent ? 'msg-sent' : 'msg-received'}`;
-      
-      const timeStr = new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      
-      bubble.innerHTML = `
-        <div>${m.content}</div>
-        <div class="msg-time">${timeStr}</div>
-      `;
+      const bubble   = document.createElement("div");
+      const isSent   = m.sender_id === currentUser.id;
+      bubble.className = `msg-bubble ${isSent ? "msg-sent" : "msg-received"}`;
 
+      const timeStr  = new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      bubble.innerHTML = `<div>${m.content}</div><div class="msg-time">${timeStr}</div>`;
       messagesContainer.appendChild(bubble);
     });
 
-    // Auto-scroll chat area to bottom
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
   }
 
-  // 4. Send Message Form Submit
-  chatForm.addEventListener("submit", (e) => {
+  // ── 4. Send message ──────────────────────────────────────────
+  chatForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const content = chatInput.value.trim();
     if (!content || !activeThreadUserId) return;
 
-    const newMsg = {
-      id: "msg_" + Date.now(),
-      senderId: currentUser.id,
-      receiverId: activeThreadUserId,
-      content: content,
-      timestamp: new Date().toISOString()
-    };
-
-    messages.push(newMsg);
-    localStorage.setItem("agrilinker_messages", JSON.stringify(messages));
-    
     chatInput.value = "";
-    renderMessages();
-    renderThreads();
+    chatInput.disabled = true;
 
-    // Trigger simulated chatbot replies to make the app feel alive
-    simulateReply(content);
-  });
-
-  // 5. Automated response replies simulator
-  function simulateReply(userMessage) {
-    const threadUser = users.find(u => u.id === activeThreadUserId);
-    if (!threadUser) return;
-
-    let response = "";
-    
-    // Customize replies based on user roles
-    if (threadUser.role === "farmer") {
-      if (userMessage.toLowerCase().includes("fresh") || userMessage.toLowerCase().includes("quality")) {
-        response = "Greetings! Yes, all my products are harvested fresh daily. You are welcome to set up a farm pickup run to inspect quality!";
-      } else if (userMessage.toLowerCase().includes("price") || userMessage.toLowerCase().includes("discount")) {
-        response = "Our pricing is set directly at fair farm-gate values. Since there are no middle agents, it is already optimized.";
-      } else {
-        response = "Thank you for reaching out! Let me check the crops in the greenhouse and get back to you shortly.";
-      }
-    } else if (threadUser.role === "customer") {
-      if (userMessage.toLowerCase().includes("status") || userMessage.toLowerCase().includes("deliver")) {
-        response = "Perfect! I am tracking the order status. Let me know when the delivery agent starts the transit.";
-      } else {
-        response = "Hi! Thank you for the update. Looking forward to getting the fresh farm produce.";
-      }
-    } else {
-      response = "I am on my way to deliver the package. Will update status on the tracker map!";
+    const sent = await DB.sendMessage(currentUser.id, activeThreadUserId, content);
+    if (sent) {
+      allMessages.push(sent);
+      renderMessages();
+      renderThreads();
     }
 
-    setTimeout(() => {
-      const botMsg = {
-        id: "msg_" + Date.now(),
-        senderId: threadUser.id,
-        receiverId: currentUser.id,
-        content: response,
-        timestamp: new Date().toISOString()
-      };
+    chatInput.disabled = false;
+    chatInput.focus();
+  });
 
-      messages.push(botMsg);
-      localStorage.setItem("agrilinker_messages", JSON.stringify(messages));
-      
-      // Re-render if active thread is still open
-      if (activeThreadUserId === threadUser.id) {
-        renderMessages();
-      }
-      renderThreads();
-      
-      // Toast notification alert
-      App.showToast(`New message from ${threadUser.name}`);
-    }, 2500);
+  // ── 5. Supabase Realtime subscription ───────────────────────
+  function subscribeToMessages() {
+    realtimeChannel = supabaseClient
+      .channel("messages-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event:  "INSERT",
+          schema: "public",
+          table:  "messages",
+          filter: `receiver_id=eq.${currentUser.id}`
+        },
+        async (payload) => {
+          const newMsg = payload.new;
+
+          // Fetch sender profile if not cached
+          if (!allProfiles[newMsg.sender_id]) {
+            const profile = await DB.getProfile(newMsg.sender_id);
+            if (profile) allProfiles[newMsg.sender_id] = profile;
+          }
+
+          allMessages.push(newMsg);
+
+          // Re-render if conversation is active
+          if (activeThreadUserId === newMsg.sender_id) {
+            renderMessages();
+            await DB.markMessagesRead(currentUser.id, newMsg.sender_id);
+          } else {
+            const senderName = allProfiles[newMsg.sender_id]?.name || "Someone";
+            App.showToast(`New message from ${senderName}`);
+          }
+
+          renderThreads();
+        }
+      )
+      .subscribe();
   }
 
-  // Load threads and check active params on start
-  renderThreads();
+  // ── Init ─────────────────────────────────────────────────────
+  await loadMessages();
+  subscribeToMessages();
 
-  const urlParams = new URLSearchParams(window.location.search);
+  // Open chat from URL param
+  const urlParams     = new URLSearchParams(window.location.search);
   const chatWithParam = urlParams.get("chat_with");
   if (chatWithParam) {
-    openConversation(chatWithParam);
+    await openConversation(chatWithParam);
   }
 });

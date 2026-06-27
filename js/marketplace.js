@@ -1,18 +1,27 @@
-// Marketplace, Shopping Cart, Farm Finder Leaflet integration
-document.addEventListener("DOMContentLoaded", () => {
-  // Check authorization - only customer can browse marketplace
-  App.checkAuthAndRedirect(["customer"]);
+// ============================================================
+// AgriLinker — Marketplace (Supabase Data Layer)
+// Shopping Cart, Farm Finder Leaflet integration
+// ============================================================
 
-  const currentUser = App.getCurrentUser();
-  let products = JSON.parse(localStorage.getItem("agrilinker_products") || "[]");
-  const users = JSON.parse(localStorage.getItem("agrilinker_users") || "[]");
-  
+document.addEventListener("DOMContentLoaded", async () => {
+  // Check authorization - only customer can browse marketplace
+  await App.checkAuthAndRedirect(["customer"]);
+
+  // We await fetchCurrentUser here to ensure the session is loaded
+  const currentUser = await App.fetchCurrentUser();
+  if (!currentUser) return;
+
+  // State
+  let products = [];
   let cart = [];
   let isMapView = false;
   let mapInstance = null;
   let checkoutMapInstance = null;
   let checkoutMarker = null;
-  let checkoutCoords = currentUser ? currentUser.coords : [12.9716, 77.5946];
+  let checkoutCoords = currentUser.lat && currentUser.lng ? [currentUser.lat, currentUser.lng] : [12.9716, 77.5946];
+
+  let activeCategory = "all";
+  let activeQuery = "";
 
   // DOM bindings
   const productsContainer = document.getElementById("products-container");
@@ -41,8 +50,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const checkoutCancelBtn = document.getElementById("checkout-cancel");
   const checkoutConfirmBtn = document.getElementById("checkout-confirm");
 
-  let activeCategory = "all";
-  let activeQuery = "";
+  // 0. Initial Data Load
+  async function loadData() {
+    productsContainer.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:3rem;"><div class="spinner"></div></div>`;
+    products = await DB.getProducts();
+    renderCatalog();
+  }
 
   // 1. Render Products Catalog
   function renderCatalog() {
@@ -51,8 +64,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // Filter logic
     const filtered = products.filter(p => {
       const matchCat = activeCategory === "all" || p.category === activeCategory;
-      const matchSearch = p.name.toLowerCase().includes(activeQuery.toLowerCase()) || 
-                          p.description.toLowerCase().includes(activeQuery.toLowerCase());
+      const matchSearch = (p.name || "").toLowerCase().includes(activeQuery.toLowerCase()) || 
+                          (p.description || "").toLowerCase().includes(activeQuery.toLowerCase());
       return matchCat && matchSearch;
     });
 
@@ -62,7 +75,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     filtered.forEach(p => {
-      const farmer = users.find(u => u.id === p.farmerId) || { name: "Unknown Farmer", rating: 4.5 };
+      const farmerName = p.farmer?.name || "Unknown Farmer";
+      const farmerRating = p.farmer?.rating || 0;
+      
       const card = document.createElement("div");
       card.className = "glass-card product-card";
       
@@ -76,7 +91,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <h4 class="product-title">${p.name}</h4>
           <div class="product-farmer">
             <i class="ri-user-follow-line"></i>
-            <span>${farmer.name} (${farmer.rating} ⭐)</span>
+            <span>${farmerName} (${farmerRating} ⭐)</span>
           </div>
           <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">${p.description}</p>
           <div class="product-price-stock">
@@ -88,11 +103,9 @@ document.addEventListener("DOMContentLoaded", () => {
           </button>
         </div>
       `;
-      
       productsContainer.appendChild(card);
     });
 
-    // Translate page elements inside container
     App.translatePage();
 
     // Attach Add to Cart Listeners
@@ -165,18 +178,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Handle delivery details calculation
     let deliveryCharge = 0;
-    if (deliveryOptIn.checked && currentUser && currentUser.coords) {
+    if (deliveryOptIn.checked && checkoutCoords) {
       // Calculate average distance from farmers in cart
       let totalDistance = 0;
       let farmerCounts = 0;
       
-      const uniqueFarmers = [...new Set(cart.map(item => item.product.farmerId))];
+      const uniqueFarmers = [...new Set(cart.map(item => item.product.farmer_id))];
       uniqueFarmers.forEach(fid => {
-        const farmerUser = users.find(u => u.id === fid);
-        if (farmerUser && farmerUser.coords) {
+        // Find a product from this farmer to get coords
+        const farmerProd = cart.find(i => i.product.farmer_id === fid)?.product;
+        if (farmerProd && farmerProd.farmer && farmerProd.farmer.lat) {
           totalDistance += AgriMap.calculateDistance(
-            currentUser.coords[0], currentUser.coords[1],
-            farmerUser.coords[0], farmerUser.coords[1]
+            checkoutCoords[0], checkoutCoords[1],
+            farmerProd.farmer.lat, farmerProd.farmer.lng
           );
           farmerCounts++;
         }
@@ -196,19 +210,12 @@ document.addEventListener("DOMContentLoaded", () => {
     cartTotal.textContent = `₹${grandTotal.toFixed(2)}`;
     checkoutBtn.disabled = false;
 
-    // Hook listeners inside cart
+    // Hook listeners
     document.querySelectorAll(".dec-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const id = btn.getAttribute("data-id");
-        changeQty(id, -1);
-      });
+      btn.addEventListener("click", () => changeQty(btn.getAttribute("data-id"), -1));
     });
-
     document.querySelectorAll(".inc-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const id = btn.getAttribute("data-id");
-        changeQty(id, 1);
-      });
+      btn.addEventListener("click", () => changeQty(btn.getAttribute("data-id"), 1));
     });
   }
 
@@ -235,51 +242,44 @@ document.addEventListener("DOMContentLoaded", () => {
   function initFarmFinderMap() {
     if (mapInstance) return;
 
-    // Center map around customer location
-    const center = currentUser && currentUser.coords ? currentUser.coords : [12.9716, 77.5946];
-    mapInstance = AgriMap.init("marketplace-map", center, 11);
+    mapInstance = AgriMap.init("marketplace-map", checkoutCoords, 11);
+    AgriMap.addMarker(mapInstance, checkoutCoords, "Your Delivery Address", "customer");
 
-    // Drop marker for customer location
-    if (currentUser && currentUser.coords) {
-      AgriMap.addMarker(mapInstance, currentUser.coords, "Your Delivery Address", "customer");
-    }
+    // Group products by farmer to place one marker per farmer
+    const farmerProductsMap = {};
+    products.forEach(p => {
+      if (!farmerProductsMap[p.farmer_id]) farmerProductsMap[p.farmer_id] = [];
+      farmerProductsMap[p.farmer_id].push(p);
+    });
 
-    // Gather all farmers in user database
-    const farmers = users.filter(u => u.role === "farmer" && u.coords);
-    farmers.forEach(farmer => {
-      const farmerProds = products.filter(p => p.farmerId === farmer.id);
-      
-      let productsHtml = "";
-      if (farmerProds.length === 0) {
-        productsHtml = "<p style='color:#6b7280; font-size:0.8rem;'>No active listings.</p>";
-      } else {
-        productsHtml = farmerProds.slice(0, 3).map(p => `
-          <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; margin-top:0.5rem; border-top:1px solid #374151; padding-top:0.25rem;">
-            <span>${p.name} (₹${p.price})</span>
-            <button class="btn btn-primary map-shop-btn" data-id="${p.id}" style="padding:0.2rem 0.5rem; font-size:0.75rem;">+ Cart</button>
-          </div>
-        `).join("");
-      }
+    Object.values(farmerProductsMap).forEach(farmerProds => {
+      const farmer = farmerProds[0].farmer;
+      if (!farmer || !farmer.lat || !farmer.lng) return;
+
+      let productsHtml = farmerProds.slice(0, 3).map(p => `
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; margin-top:0.5rem; border-top:1px solid #374151; padding-top:0.25rem;">
+          <span>${p.name} (₹${p.price})</span>
+          <button class="btn btn-primary map-shop-btn" data-id="${p.id}" style="padding:0.2rem 0.5rem; font-size:0.75rem;">+ Cart</button>
+        </div>
+      `).join("");
 
       const popupContent = `
         <div style="color:white; font-family:Outfit, sans-serif;">
           <h4 style="margin-bottom:0.25rem; font-weight:700;">${farmer.name}</h4>
-          <p style="font-size:0.8rem; color:#9ca3af; margin-bottom:0.5rem;">${farmer.address}</p>
+          <p style="font-size:0.8rem; color:#9ca3af; margin-bottom:0.5rem;">${farmer.address || "Farm Location"}</p>
           <div style="font-weight:600; font-size:0.85rem; margin-top:0.5rem; color:#7cc243;">Listed Crops:</div>
           ${productsHtml}
         </div>
       `;
 
-      AgriMap.addMarker(mapInstance, farmer.coords, popupContent, "farmer");
+      AgriMap.addMarker(mapInstance, [farmer.lat, farmer.lng], popupContent, "farmer");
     });
 
-    // Map Event delegation for '+ Cart' click inside map popup
     mapInstance.on("popupopen", () => {
       document.querySelectorAll(".map-shop-btn").forEach(btn => {
         btn.onclick = (e) => {
           e.preventDefault();
-          const prodId = btn.getAttribute("data-id");
-          addToCart(prodId);
+          addToCart(btn.getAttribute("data-id"));
         };
       });
     });
@@ -317,37 +317,30 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // 5. Checkout Confirmation Modal & Maps
+  // 5. Checkout
   checkoutBtn.addEventListener("click", () => {
     checkoutModal.classList.add("active");
     
-    // Fill checkout summary list
     checkoutSummaryList.innerHTML = "";
     cart.forEach(item => {
       const div = document.createElement("div");
       div.style.display = "flex";
-      div.style.justify = "space-between";
+      div.style.justifyContent = "space-between";
       div.style.fontSize = "0.9rem";
       div.style.padding = "0.4rem 0";
-      div.innerHTML = `
-        <span>${item.product.name} (x${item.quantity})</span>
-        <span>₹${(item.product.price * item.quantity).toFixed(2)}</span>
-      `;
+      div.innerHTML = `<span>${item.product.name} (x${item.quantity})</span><span>₹${(item.product.price * item.quantity).toFixed(2)}</span>`;
       checkoutSummaryList.appendChild(div);
     });
 
-    // Show map and input if delivery service checked
     if (deliveryOptIn.checked) {
       checkoutAddressGroup.style.display = "block";
-      checkoutAddressInput.value = currentUser ? currentUser.address : "";
+      checkoutAddressInput.value = currentUser.address || "";
       
-      // Calculate coordinates Map picker
       setTimeout(() => {
         if (!checkoutMapInstance) {
           checkoutMapInstance = AgriMap.init("checkout-map", checkoutCoords, 12);
           checkoutMarker = AgriMap.addMarker(checkoutMapInstance, checkoutCoords, "Your Delivery Coordinate Pin", "customer", true);
           
-          // coordinate changes on drag or click
           checkoutMapInstance.on("click", (e) => {
             checkoutCoords = [e.latlng.lat, e.latlng.lng];
             checkoutMarker.setLatLng(e.latlng);
@@ -372,82 +365,83 @@ document.addEventListener("DOMContentLoaded", () => {
     checkoutModal.classList.remove("active");
   });
 
-  checkoutConfirmBtn.addEventListener("click", () => {
+  checkoutConfirmBtn.addEventListener("click", async () => {
     if (deliveryOptIn.checked && checkoutAddressInput.value.trim() === "") {
       App.showToast("Please provide a delivery address", "error");
       return;
     }
 
-    const currentOrders = JSON.parse(localStorage.getItem("agrilinker_orders") || "[]");
+    checkoutConfirmBtn.disabled = true;
+    checkoutConfirmBtn.textContent = "Processing...";
+
+    const farmersInCart = [...new Set(cart.map(i => i.product.farmer_id))];
     
-    // We create separate orders per farmer to simulate individual packages
-    const farmersInCart = [...new Set(cart.map(i => i.product.farmerId))];
-    
-    farmersInCart.forEach(fid => {
-      const itemsForFarmer = cart.filter(i => i.product.farmerId === fid);
+    // Process each farmer's order separately
+    for (const fid of farmersInCart) {
+      const itemsForFarmer = cart.filter(i => i.product.farmer_id === fid);
       const sub = itemsForFarmer.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
-      const farmerUser = users.find(u => u.id === fid) || { coords: [12.97, 77.60] };
+      
+      const farmerProd = itemsForFarmer[0].product;
+      const farmerUser = farmerProd.farmer || { lat: 12.97, lng: 77.60 };
 
       let delCharge = 0;
       if (deliveryOptIn.checked) {
         const dist = AgriMap.calculateDistance(
           checkoutCoords[0], checkoutCoords[1],
-          farmerUser.coords[0], farmerUser.coords[1]
+          farmerUser.lat, farmerUser.lng
         );
         delCharge = AgriMap.calculateDeliveryCharge(dist, itemsForFarmer.length);
       }
 
-      const newOrder = {
-        id: "order_" + Math.floor(Math.random() * 9000 + 1000),
-        customerId: currentUser.id,
-        farmerId: fid,
-        deliveryId: deliveryOptIn.checked ? "delivery_kartik" : null, // Assign to seeded deliverer
-        items: itemsForFarmer.map(i => ({
-          productId: i.product.id,
-          name: i.product.name,
-          quantity: i.quantity,
-          price: i.product.price
-        })),
+      const orderData = {
+        customer_id: currentUser.id,
+        farmer_id: fid,
         subtotal: sub,
-        deliveryCharge: delCharge,
+        delivery_charge: delCharge,
         total: sub + delCharge,
-        status: deliveryOptIn.checked ? "pending" : "accepted", // accepted acts as farm self-pickup confirm
-        date: new Date().toISOString(),
-        deliveryAddress: deliveryOptIn.checked ? checkoutAddressInput.value : "Self-Pickup from Farm",
-        deliveryCoords: deliveryOptIn.checked ? checkoutCoords : null,
-        farmerCoords: farmerUser.coords
+        status: deliveryOptIn.checked ? "pending" : "accepted",
+        delivery_address: deliveryOptIn.checked ? checkoutAddressInput.value : "Self-Pickup from Farm",
+        delivery_lat: deliveryOptIn.checked ? checkoutCoords[0] : null,
+        delivery_lng: deliveryOptIn.checked ? checkoutCoords[1] : null,
+        farmer_lat: farmerUser.lat,
+        farmer_lng: farmerUser.lng
       };
 
-      currentOrders.push(newOrder);
+      const orderItems = itemsForFarmer.map(i => ({
+        product_id: i.product.id,
+        name: i.product.name,
+        quantity: i.quantity,
+        price: i.product.price
+      }));
 
-      // Decrement product stocks in catalog database
-      itemsForFarmer.forEach(item => {
-        const catProd = products.find(p => p.id === item.product.id);
-        if (catProd) {
-          catProd.stock = Math.max(0, catProd.stock - item.quantity);
+      const newOrder = await DB.placeOrder(orderData, orderItems);
+
+      if (newOrder) {
+        // Decrease stock in Supabase
+        for (const item of itemsForFarmer) {
+          const newStock = Math.max(0, item.product.stock - item.quantity);
+          await DB.updateProduct(item.product.id, { stock: newStock });
         }
-      });
-    });
-
-    // Write back databases
-    localStorage.setItem("agrilinker_orders", JSON.stringify(currentOrders));
-    localStorage.setItem("agrilinker_products", JSON.stringify(products));
+      } else {
+        App.showToast("Failed to place order. Try again.", "error");
+      }
+    }
 
     App.showToast("Order placed successfully!");
     checkoutModal.classList.remove("active");
+    checkoutConfirmBtn.disabled = false;
+    checkoutConfirmBtn.textContent = "Confirm Order";
     
-    // Clear cart and UI state
+    // Clear cart and reload
     cart = [];
     updateCartDisplay();
-    renderCatalog();
+    await loadData(); // refresh stock
 
-    // Redirect to customer dashboard
     setTimeout(() => {
       window.location.href = "customer-dashboard.html";
-    }, 1000);
+    }, 1500);
   });
 
-  // Start page load rendering catalog
-  renderCatalog();
-  updateCartDisplay();
+  // Boot
+  await loadData();
 });
