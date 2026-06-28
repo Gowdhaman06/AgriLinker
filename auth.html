@@ -171,13 +171,42 @@
           <input type="text" id="role-address" class="form-control" placeholder="Enter physical address">
         </div>
 
-        <div class="form-group" id="map-selection-group" style="display:none;">
-          <label style="display:flex; justify-content:space-between;">
-            <span data-translate="setMapLoc">Click on map to set your location</span>
-            <span id="coords-indicator" style="color:var(--lime); font-size:0.85rem;">[None, None]</span>
+        <div class="form-group" id="location-cascading-group" style="display:none;">
+          <label style="margin-bottom:0.75rem; font-weight:600; color:var(--lime); display:flex; align-items:center; gap:0.5rem;">
+            <i class="ri-map-pin-line"></i> Select Your Location
           </label>
-          <!-- Leaflet setup wrapper -->
-          <div id="role-location-map" class="map-container" style="margin-top:0.5rem; height:250px;"></div>
+
+          <!-- State -->
+          <div class="cascading-field">
+            <label for="loc-state">State / Union Territory</label>
+            <div class="autocomplete-wrapper">
+              <input type="text" id="loc-state" class="form-control" placeholder="Type to search state..." autocomplete="off">
+              <div class="autocomplete-dropdown" id="dropdown-state"></div>
+            </div>
+          </div>
+
+          <!-- District -->
+          <div class="cascading-field">
+            <label for="loc-district">District</label>
+            <div class="autocomplete-wrapper">
+              <input type="text" id="loc-district" class="form-control" placeholder="Select a state first..." autocomplete="off" disabled>
+              <div class="autocomplete-dropdown" id="dropdown-district"></div>
+            </div>
+          </div>
+
+          <!-- Taluk / Subdivision -->
+          <div class="cascading-field">
+            <label for="loc-taluk">Subdivision / Taluk</label>
+            <div class="autocomplete-wrapper">
+              <input type="text" id="loc-taluk" class="form-control" placeholder="Select a district first..." autocomplete="off" disabled>
+              <div class="autocomplete-dropdown" id="dropdown-taluk"></div>
+            </div>
+          </div>
+
+          <div id="location-summary" class="location-summary" style="display:none;">
+            <i class="ri-check-double-line"></i>
+            <span id="location-summary-text"></span>
+          </div>
         </div>
       </div>
 
@@ -251,6 +280,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase.js"></script>
   <script src="js/translations.js"></script>
+  <script src="js/india-locations.js"></script>
   <script src="js/data.js"></script>
   <script src="js/app.js"></script>
   <script src="js/map.js"></script>

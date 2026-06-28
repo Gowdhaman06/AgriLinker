@@ -13,11 +13,25 @@ document.addEventListener("DOMContentLoaded", () => {
   const roleModal      = document.getElementById("role-overlay") || document.getElementById("role-modal");
   const roleCards      = document.querySelectorAll(".role-card");
   const roleExtraFields = document.getElementById("role-extra-fields");
-  const mapGroup       = document.getElementById("map-selection-group");
   const addressGroup   = document.getElementById("address-field-group");
-  const coordsIndicator = document.getElementById("coords-indicator");
   const modalCancelBtn  = document.getElementById("modal-cancel-btn");
   const modalConfirmBtn = document.getElementById("modal-confirm-btn");
+
+  // Cascading Location inputs
+  const cascadingGroup = document.getElementById("location-cascading-group");
+  const locStateInput = document.getElementById("loc-state");
+  const locDistrictInput = document.getElementById("loc-district");
+  const locTalukInput = document.getElementById("loc-taluk");
+
+  const dropdownState = document.getElementById("dropdown-state");
+  const dropdownDistrict = document.getElementById("dropdown-district");
+  const dropdownTaluk = document.getElementById("dropdown-taluk");
+
+  const locationSummary = document.getElementById("location-summary");
+  const locationSummaryText = document.getElementById("location-summary-text");
+
+  const rolePhoneInput = document.getElementById("role-phone");
+  const roleAddressInput = document.getElementById("role-address");
 
   // Password reset elements
   const forgotPasswordLink = document.getElementById("forgot-password-link");
@@ -33,10 +47,47 @@ document.addEventListener("DOMContentLoaded", () => {
   const strengthLabel = document.getElementById("strength-label");
 
   let selectedRole   = "";
-  let mapInstance    = null;
-  let selectedMarker = null;
-  let selectedCoords = null;
   let pendingUserId  = null; // Supabase user.id awaiting role setup
+
+  // State coordinates mapping for Leaflet calculations fallback
+  const STATE_COORDS = {
+    "Andhra Pradesh": [15.9129, 79.7400],
+    "Arunachal Pradesh": [28.2180, 94.7278],
+    "Assam": [26.2006, 92.9376],
+    "Bihar": [25.0961, 85.3131],
+    "Chhattisgarh": [21.2787, 81.8661],
+    "Goa": [15.2993, 74.1240],
+    "Gujarat": [22.2587, 71.1924],
+    "Haryana": [29.0588, 76.0856],
+    "Himachal Pradesh": [31.1048, 77.1734],
+    "Jharkhand": [23.6102, 85.2799],
+    "Karnataka": [15.3173, 75.7139],
+    "Kerala": [10.8505, 76.2711],
+    "Madhya Pradesh": [22.9734, 78.6569],
+    "Maharashtra": [19.7515, 75.7139],
+    "Manipur": [24.6637, 93.9063],
+    "Meghalaya": [25.4670, 91.3662],
+    "Mizoram": [23.1645, 92.9376],
+    "Nagaland": [26.1584, 94.5624],
+    "Odisha": [20.9517, 85.0985],
+    "Punjab": [31.1471, 75.3412],
+    "Rajasthan": [27.0238, 74.2179],
+    "Sikkim": [27.5330, 88.5122],
+    "Tamil Nadu": [11.1271, 78.6569],
+    "Telangana": [18.1124, 79.0193],
+    "Tripura": [23.9408, 91.9882],
+    "Uttar Pradesh": [26.8467, 80.9462],
+    "Uttarakhand": [30.0668, 79.0193],
+    "West Bengal": [22.9868, 87.8550],
+    "Delhi": [28.7041, 77.1025],
+    "Jammu and Kashmir": [33.7780, 76.5762],
+    "Ladakh": [34.1526, 77.5771],
+    "Puducherry": [11.9416, 79.8083],
+    "Chandigarh": [30.7333, 76.7794],
+    "Andaman and Nicobar Islands": [11.7401, 92.6586],
+    "Dadra and Nagar Haveli and Daman and Diu": [20.1809, 73.0169],
+    "Lakshadweep": [10.5667, 72.6417]
+  };
 
   // ── View Helper ──────────────────────────────────────────────
   function showOnlyForm(formEl) {
@@ -150,6 +201,169 @@ document.addEventListener("DOMContentLoaded", () => {
   initGoogleOAuthBtn();
 
   // ── ROLE MODAL ───────────────────────────────────────────────
+  function validateForm() {
+    if (!selectedRole) {
+      if (modalConfirmBtn) modalConfirmBtn.disabled = true;
+      return;
+    }
+
+    const phone = rolePhoneInput ? rolePhoneInput.value.trim() : "";
+    if (!phone) {
+      if (modalConfirmBtn) modalConfirmBtn.disabled = true;
+      return;
+    }
+
+    if (selectedRole === "customer") {
+      const address = roleAddressInput ? roleAddressInput.value.trim() : "";
+      if (modalConfirmBtn) modalConfirmBtn.disabled = !address;
+    } else if (selectedRole === "farmer" || selectedRole === "delivery") {
+      const stateVal = locStateInput.value.trim();
+      const distVal = locDistrictInput.value.trim();
+      const talukVal = locTalukInput.value.trim();
+
+      const isValidState = INDIA_LOCATIONS[stateVal] !== undefined;
+      const isValidDist = isValidState && INDIA_LOCATIONS[stateVal][distVal] !== undefined;
+      const isValidTaluk = isValidDist && INDIA_LOCATIONS[stateVal][distVal].includes(talukVal);
+
+      if (modalConfirmBtn) modalConfirmBtn.disabled = !(isValidState && isValidDist && isValidTaluk);
+    }
+  }
+
+  function setupAutocomplete(inputEl, dropdownEl, getOptionsFn, onSelectFn) {
+    if (!inputEl || !dropdownEl) return;
+
+    function renderDropdown(filterText = "") {
+      const options = getOptionsFn(filterText);
+      dropdownEl.innerHTML = "";
+
+      if (options.length === 0) {
+        dropdownEl.classList.remove("active");
+        return;
+      }
+
+      options.forEach(opt => {
+        const optDiv = document.createElement("div");
+        optDiv.className = "autocomplete-option";
+        optDiv.textContent = opt;
+        optDiv.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          inputEl.value = opt;
+          dropdownEl.classList.remove("active");
+          onSelectFn(opt);
+          validateForm();
+        });
+        dropdownEl.appendChild(optDiv);
+      });
+
+      dropdownEl.classList.add("active");
+    }
+
+    inputEl.addEventListener("focus", () => {
+      renderDropdown(inputEl.value);
+    });
+
+    inputEl.addEventListener("input", () => {
+      renderDropdown(inputEl.value);
+      onSelectFn(null);
+      validateForm();
+    });
+
+    inputEl.addEventListener("blur", () => {
+      setTimeout(() => {
+        dropdownEl.classList.remove("active");
+      }, 200);
+    });
+  }
+
+  // Setup cascading autocompletes
+  setupAutocomplete(
+    locStateInput,
+    dropdownState,
+    (filterText) => {
+      const states = Object.keys(INDIA_LOCATIONS);
+      return states.filter(s => s.toLowerCase().includes(filterText.toLowerCase())).slice(0, 10);
+    },
+    (state) => {
+      if (state && INDIA_LOCATIONS[state]) {
+        locDistrictInput.disabled = false;
+        locDistrictInput.placeholder = "Type to search district...";
+        locDistrictInput.value = "";
+
+        locTalukInput.disabled = true;
+        locTalukInput.placeholder = "Select a district first...";
+        locTalukInput.value = "";
+
+        locationSummary.style.display = "none";
+      } else {
+        locDistrictInput.disabled = true;
+        locDistrictInput.placeholder = "Select a state first...";
+        locDistrictInput.value = "";
+
+        locTalukInput.disabled = true;
+        locTalukInput.placeholder = "Select a district first...";
+        locTalukInput.value = "";
+
+        locationSummary.style.display = "none";
+      }
+    }
+  );
+
+  setupAutocomplete(
+    locDistrictInput,
+    dropdownDistrict,
+    (filterText) => {
+      const state = locStateInput.value.trim();
+      if (!INDIA_LOCATIONS[state]) return [];
+      const districts = Object.keys(INDIA_LOCATIONS[state]);
+      return districts.filter(d => d.toLowerCase().includes(filterText.toLowerCase())).slice(0, 10);
+    },
+    (district) => {
+      const state = locStateInput.value.trim();
+      if (district && INDIA_LOCATIONS[state] && INDIA_LOCATIONS[state][district]) {
+        locTalukInput.disabled = false;
+        locTalukInput.placeholder = "Type to search subdivision/taluk...";
+        locTalukInput.value = "";
+
+        locationSummary.style.display = "none";
+      } else {
+        locTalukInput.disabled = true;
+        locTalukInput.placeholder = "Select a district first...";
+        locTalukInput.value = "";
+
+        locationSummary.style.display = "none";
+      }
+    }
+  );
+
+  setupAutocomplete(
+    locTalukInput,
+    dropdownTaluk,
+    (filterText) => {
+      const state = locStateInput.value.trim();
+      const district = locDistrictInput.value.trim();
+      if (!INDIA_LOCATIONS[state] || !INDIA_LOCATIONS[state][district]) return [];
+      const taluks = INDIA_LOCATIONS[state][district];
+      return taluks.filter(t => t.toLowerCase().includes(filterText.toLowerCase())).slice(0, 10);
+    },
+    (taluk) => {
+      const state = locStateInput.value.trim();
+      const district = locDistrictInput.value.trim();
+      if (taluk && INDIA_LOCATIONS[state] && INDIA_LOCATIONS[state][district] && INDIA_LOCATIONS[state][district].includes(taluk)) {
+        locationSummaryText.textContent = `Selected: ${taluk}, ${district}, ${state}`;
+        locationSummary.style.display = "flex";
+      } else {
+        locationSummary.style.display = "none";
+      }
+    }
+  );
+
+  if (rolePhoneInput) {
+    rolePhoneInput.addEventListener("input", validateForm);
+  }
+  if (roleAddressInput) {
+    roleAddressInput.addEventListener("input", validateForm);
+  }
+
   function openRoleModal() {
     if (roleModal) roleModal.classList.add("active");
     selectedRole = "";
@@ -157,6 +371,7 @@ document.addEventListener("DOMContentLoaded", () => {
       roleCards.forEach(card => card.classList.remove("selected"));
     }
     if (roleExtraFields) roleExtraFields.style.display = "none";
+    if (modalConfirmBtn) modalConfirmBtn.disabled = true;
   }
 
   roleCards.forEach(card => {
@@ -167,28 +382,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (roleExtraFields) {
         roleExtraFields.style.display = "block";
-        if (mapGroup)    mapGroup.style.display    = (selectedRole === "farmer" || selectedRole === "delivery") ? "block" : "none";
-        if (addressGroup) addressGroup.style.display = selectedRole === "customer" ? "block" : "none";
+        const isFarmerOrDelivery = (selectedRole === "farmer" || selectedRole === "delivery");
+        if (cascadingGroup) cascadingGroup.style.display = isFarmerOrDelivery ? "block" : "none";
+        if (addressGroup)   addressGroup.style.display   = selectedRole === "customer" ? "block" : "none";
       }
 
-      // Init leaflet map for farmer/delivery
-      if ((selectedRole === "farmer" || selectedRole === "delivery") && !mapInstance) {
-        setTimeout(() => {
-          mapInstance = L.map("role-map").setView([20.5937, 78.9629], 5);
-          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            attribution: "© OpenStreetMap contributors"
-          }).addTo(mapInstance);
-
-          mapInstance.on("click", (e) => {
-            selectedCoords = [e.latlng.lat, e.latlng.lng];
-            if (selectedMarker) mapInstance.removeLayer(selectedMarker);
-            selectedMarker = L.marker(selectedCoords).addTo(mapInstance);
-            if (coordsIndicator) {
-              coordsIndicator.textContent = `📍 ${selectedCoords[0].toFixed(4)}, ${selectedCoords[1].toFixed(4)}`;
-            }
-          });
-        }, 200);
-      }
+      validateForm();
     });
   });
 
@@ -200,18 +399,29 @@ document.addEventListener("DOMContentLoaded", () => {
       const uid = pendingUserId || (user && user.id);
       if (!uid) { App.showToast("Session error. Please log in again.", "error"); return; }
 
-      const profileUpdate = { role: selectedRole };
+      const phone = rolePhoneInput ? rolePhoneInput.value.trim() : "";
+      const profileUpdate = { role: selectedRole, phone: phone };
 
       if (selectedRole === "customer") {
-        const address = document.getElementById("customer-address");
-        if (address) profileUpdate.address = address.value;
+        if (roleAddressInput) profileUpdate.address = roleAddressInput.value.trim();
       }
 
       if (selectedRole === "farmer" || selectedRole === "delivery") {
-        if (selectedCoords) {
-          profileUpdate.lat = selectedCoords[0];
-          profileUpdate.lng = selectedCoords[1];
-        }
+        const stateVal = locStateInput.value.trim();
+        const distVal = locDistrictInput.value.trim();
+        const talukVal = locTalukInput.value.trim();
+
+        profileUpdate.address = `${talukVal}, ${distVal}, ${stateVal}`;
+
+        // Get coordinates from our state mapping
+        const coords = STATE_COORDS[stateVal] || [12.9716, 77.5946];
+        // Perturb coordinates slightly so multiple users in the same state aren't stacked exactly on top of each other
+        const hash = (uid.charCodeAt(0) + uid.charCodeAt(1) + uid.charCodeAt(2)) % 100;
+        const perturbationLat = (hash - 50) * 0.005;
+        const perturbationLng = (hash - 50) * 0.005;
+
+        profileUpdate.lat = coords[0] + perturbationLat;
+        profileUpdate.lng = coords[1] + perturbationLng;
       }
 
       // Upsert profile with role
